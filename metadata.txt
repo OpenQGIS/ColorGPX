@@ -1,0 +1,35 @@
+[general]
+name=ColorGPX
+description=Render GPX tracks as gradient-colored layers by speed, elevation or slope, with support for extensions (Guru Maps, OsmAnd, etc.). GPX轨迹按速度/高度/坡度渲染工具，支持extensions扩展速度/高程（Guru Maps、OsmAnd等）
+version=2.6.0
+qgisMinimumVersion=3.1
+qgisMaximumVersion=4.99
+author=OpenQGIS
+email=OpenQGIS@outlook.com
+about=Extracts speed, elevation and slope data from GPX track_points layers, generates point, line, or gradient line layers, and renders them with classified colors. Supports Jenks natural breaks for point/line modes and true interpolated gradient along lines. Also reads speed and elevation from GPX extensions (Guru Maps, OsmAnd, etc.). 提取GPX的track points图层的速度（speed）、高程（elevation）和坡度（slope）信息，生成点、线或渐变线图层，并根据对应属性进行彩色化渲染。支持点/线的Jenks自然断点分级和沿线真实渐变。支持从GPX extensions中读取速度和高程（Guru Maps、OsmAnd等应用）。
+tracker=https://github.com/OpenQGIS/ColorGPX/issues
+repository=https://github.com/OpenQGIS/ColorGPX
+tags=GPX,Analysis,gradient,interpolated,slope,degree,extensions,Guru Maps,OsmAnd
+homepage=https://github.com/OpenQGIS/ColorGPX
+category=Analysis
+icon=icons/icon.png
+changelog=
+  v2.6.0 2026/6/29:
+  * 工具栏图标改为独立可移动工具栏，支持拖拽停靠（Changed to independent movable toolbar, supports drag-and-dock）
+  v2.5.0 2026/6/19:
+  * 坡度输出改为角度（°），值越大越陡峭（Slope output changed to degrees (°), steeper = larger value）
+  v2.4.0 2026/6/19:
+  * 优化坡度算法：下坡为负值，双向EMA平滑过渡，GPS噪声阈值过滤（Optimized slope algorithm: negative downhill, bidirectional EMA smoothing, GPS noise threshold filtering）
+  * 兼容QGIS 4 / PyQt6（Fixed compatibility with QGIS 4 / PyQt6）
+  v2.3.0 2026/6/19:
+  * 重命名插件为 ColorGPX（Renamed plugin to ColorGPX）
+  * 新增坡度（Slope）渲染字段，基于Haversine距离与高差计算（Added Slope rendering field, calculated from Haversine distance and elevation difference）
+  v2.2.0 2026/6/19:
+  * 支持从GPX extensions中读取速度和高程（兼容Guru Maps、OsmAnd等应用）（Added support for reading speed/elevation from GPX extensions (Guru Maps, OsmAnd, etc.)）
+  v2.1.0 2026/6/15:
+  * 添加渐变线样式 [QGIS 3.40+]（Added gradient line rendering [QGIS 3.40+]）
+  * 固定插值线的最小/最大值、颜色渐变同步、标签精度以及单位后缀 （Fixed interpolated line min/max, color ramp sync, label precision , and unit suffix）
+  v2.0.0 2026/6/14:
+  * 新增线条密度调节、反向斜坡功能及输出控制功能（Added line densification, reverse ramp, output control.）
+  v1.1 2026/6/12:
+  * 首次发布（Initial release）
