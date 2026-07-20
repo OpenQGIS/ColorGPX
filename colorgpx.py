@@ -1,4 +1,4 @@
-﻿from qgis.PyQt.QtWidgets import (QAction, QDialog, QVBoxLayout, QHBoxLayout,
+from qgis.PyQt.QtWidgets import (QAction, QDialog, QVBoxLayout, QHBoxLayout,
                                 QLabel, QComboBox, QLineEdit, QPushButton,
                                  QMessageBox, QFileDialog, QTextEdit, QProgressBar, QMenu,
                                  QListWidget, QListWidgetItem, QCheckBox, QSizePolicy, QApplication,
@@ -94,8 +94,8 @@ class ColorGPXDialog(QDialog):
                 if ramp:
                     icon = self._make_ramp_preview(ramp)
                     self.ramp_preview.setPixmap(icon.pixmap(74, 22))
-        except:
-            pass
+        except Exception as e:
+            print(f"ColorGPX: Error during default color ramp initialization: {e}")
 
         # ---- reverse ramp checkbox ---- #
         ramp_rev_row = QHBoxLayout()
@@ -293,8 +293,8 @@ class ColorGPXDialog(QDialog):
             if ramp:
                 icon = self._make_ramp_preview(ramp, reverse=self.reverse_cb.isChecked())
                 self.ramp_preview.setPixmap(icon.pixmap(74, 22))
-        except:
-            pass
+        except Exception as e:
+            print(f"ColorGPX: Error updating color ramp preview: {e}")
 
     def refresh_layers(self):
         self.layer_combo.clear()

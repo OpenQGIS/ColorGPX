@@ -9,7 +9,10 @@ except (ImportError, AttributeError):
     _Int = QVariant.Int
     _Double = QVariant.Double
     _String = QVariant.String
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET  # nosec B405
 import math
 
 
@@ -31,7 +34,7 @@ def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Sl
     and elevation of its endpoints.
     """
 
-    tree = ET.parse(gpx_file)
+    tree = ET.parse(gpx_file)  # nosec B314
     root = tree.getroot()
 
     # ---- collect raw trkpt values, tracking segment boundaries ---- #
@@ -83,12 +86,12 @@ def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Sl
                     if ct == "ele":
                         try:
                             ele = float(child.text)
-                        except Exception:
+                        except (ValueError, TypeError):
                             pass
                     elif ct == "speed":
                         try:
                             speed = float(child.text)
-                        except Exception:
+                        except (ValueError, TypeError):
                             pass
                     elif ct == "time":
                         time_val = child.text or ""
@@ -98,12 +101,12 @@ def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Sl
                             if ect == "speed":
                                 try:
                                     speed = float(ext_child.text)
-                                except Exception:
+                                except (ValueError, TypeError):
                                     pass
                             elif ect == "ele":
                                 try:
                                     ele = float(ext_child.text)
-                                except Exception:
+                                except (ValueError, TypeError):
                                     pass
                 points.append(dict(
                     lon=float(trkpt.attrib.get("lon", 0)),

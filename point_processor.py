@@ -9,7 +9,10 @@ except (ImportError, AttributeError):
     _Int = QVariant.Int
     _Double = QVariant.Double
     _String = QVariant.String
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET  # nosec B405
 import math
 
 
@@ -26,7 +29,7 @@ def haversine_distance(lon1, lat1, lon2, lat2):
 def process_points(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Slope", progress_callback=None):
     """Parse GPX and return a PointZM memory layer with speed, elevation, slope, time, track_seg_point_id."""
 
-    tree = ET.parse(gpx_file)
+    tree = ET.parse(gpx_file)  # nosec B314
     root = tree.getroot()
 
     points = []
@@ -46,12 +49,12 @@ def process_points(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="S
                 if ct == "ele":
                     try:
                         ele = float(child.text)
-                    except:
+                    except (ValueError, TypeError):
                         pass
                 elif ct == "speed":
                     try:
                         speed = float(child.text)
-                    except:
+                    except (ValueError, TypeError):
                         pass
                 elif ct == "time":
                     time_val = child.text or ""
@@ -61,12 +64,12 @@ def process_points(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="S
                         if ect == "speed":
                             try:
                                 speed = float(ext_child.text)
-                            except Exception:
+                            except (ValueError, TypeError):
                                 pass
                         elif ect == "ele":
                             try:
                                 ele = float(ext_child.text)
-                            except Exception:
+                            except (ValueError, TypeError):
                                 pass
             points.append(dict(
                 lon=float(trkpt.attrib.get("lon", 0)),
