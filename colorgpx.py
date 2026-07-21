@@ -299,7 +299,7 @@ class ColorGPXDialog(QDialog):
     def refresh_layers(self):
         self.layer_combo.clear()
         for layer in QgsProject.instance().mapLayers().values():
-            if layer.type() == QgsMapLayer.VectorLayer:
+            if layer.type() == QgsMapLayer.LayerType.VectorLayer:
                 self.layer_combo.addItem(layer.name(), layer)
 
     def get_selected_layer(self):
@@ -428,7 +428,7 @@ class ColorGPX:
                 else:
                     error_code, error_msg = result, ""
 
-                if error_code == QgsVectorFileWriter.NoError:
+                if error_code == QgsVectorFileWriter.WriterError.NoError:
                     self.iface.messageBar().pushSuccess(
                         tr("保存成功", "Saved"), f"{output_path}"
                     )

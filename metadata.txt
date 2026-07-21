@@ -1,7 +1,7 @@
 [general]
 name=ColorGPX
 description=Render GPX tracks as gradient-colored layers by speed, elevation or slope, with support for extensions (Guru Maps, OsmAnd, etc.). GPX轨迹按速度/高度/坡度渲染工具，支持extensions扩展速度/高程（Guru Maps、OsmAnd等）
-version=2.6.1
+version=2.6.3
 qgisMinimumVersion=3.1
 qgisMaximumVersion=4.99
 author=OpenQGIS
@@ -14,8 +14,10 @@ homepage=https://github.com/OpenQGIS/ColorGPX
 category=Analysis
 icon=icons/icon.png
 changelog=
-  v2.6.1 2026/7/20:
-  * 审核审查
+  v2.6.3 2026/7/21:
+  * 修复与 QGIS 4.0 的枚举兼容性问题以支持最新 QGIS 版本 (Fixed enum compatibility issues with QGIS 4.0)
+  * 根据 QGIS 插件审查要求重构 XML 安全解析逻辑，消除 Bandit 漏洞警告 (Secured XML parsing logic to resolve security warnings for QGIS repository approval)
+  * 移除未使用的开发脚本，精简插件包体积 (Removed unused development scripts)
   v2.6.0 2026/6/29:
   * 工具栏图标改为独立可移动工具栏，支持拖拽停靠（Changed to independent movable toolbar, supports drag-and-dock）
   v2.5.0 2026/6/19:
