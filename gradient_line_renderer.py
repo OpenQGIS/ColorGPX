@@ -28,13 +28,11 @@ def apply_gradient_renderer(layer, field_name, color_ramp_name=None, reverse=Fal
     # ---- 1. 加载色带 ---- #
     style = QgsStyle().defaultStyle()
     ramp_name = color_ramp_name or "RdYlGn"
-    print(f"  色带名称传入: [{ramp_name}]", flush=True)
     ramp = style.colorRamp(ramp_name)
     if not ramp:
         fallback = style.colorRampNames()
         if fallback:
             ramp = style.colorRamp(fallback[0])
-            print(f"  色带 [{ramp_name}] 未找到, 回退为 [{fallback[0]}]", flush=True)
 
     if reverse and ramp:
         ramp = ramp.clone()
@@ -122,5 +120,3 @@ def apply_gradient_renderer(layer, field_name, color_ramp_name=None, reverse=Fal
     # ---- 6. 应用渲染器 ---- #
     layer.setRenderer(renderer)
     layer.triggerRepaint()
-
-    print(f"✅ 渐变线渲染已应用 → {field_name}_S → {field_name}_E | 色带: {ramp_name} | 反转: {reverse} | 精度: 1 | 后缀: {suffix}")

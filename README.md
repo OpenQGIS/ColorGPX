@@ -1,8 +1,15 @@
-﻿# ColorGPX
+# ColorGPX
 
 > 将 GPX 轨迹按速度、高程或坡度渲染为渐变色图层的 QGIS 插件
 
 **ColorGPX** 从 GPX 文件的 track_points 图层中提取速度（speed）、高程（elevation）信息，并自动计算坡度（slope），生成点、线或渐变线图层，并按对应属性进行色彩渲染，让轨迹数据一目了然。
+
+## 效果预览
+
+| 速度渲染 (Speed) | 高程渲染 (Elevation) | 坡度渲染 (Slope) |
+| :---: | :---: | :---: |
+| ![速度](screenshots/speed.png) | ![高程](screenshots/elevation.png) | ![坡度](screenshots/slope.png) |
+
 
 ## 功能特性
 
@@ -14,21 +21,7 @@
 - **反转色带** — 一键反转渐变方向
 - **渐变线属性** — 自动设置内插线符号层的最小值/最大值（取 `_S`/`_E` 字段最值）、标注精度（1位）、标签单位后缀（速度→m/s，高程→m，坡度→°）
 - **输出控制** — 创建临时图层或保存为 GeoJSON / GPKG / Shapefile
-- **进度条** — 实时显示算法处理进度
-- **中英双语** — 界面语言跟随 QGIS 系统设置自动切换
 
-## 安装
-
-1. 下载或克隆本仓库到 QGIS 插件目录：
-   ```
-   # Windows
-   %APPDATA%\QGIS\QGIS3\profiles\<profile>\python\plugins\ColorGPX
-
-   # macOS / Linux
-   ~/.local/share/QGIS/QGIS3/profiles/<profile>/python/plugins/ColorGPX
-   ```
-
-2. 打开 QGIS → 插件 → 管理并安装插件 → 搜索 ColorGPX → 启用
 
 ## 使用方法
 
@@ -42,23 +35,6 @@
 4. 点击 **确认运行**
 5. 渲染完成后图层自动添加到地图
 
-## 项目结构
-
-```text
-ColorGPX/
-├── __init__.py                   # 插件入口
-├── colorgpx.py                   # 主对话框和插件逻辑
-├── point_processor.py            # GPX 点数据解析
-├── point_renderer.py             # 点分级渲染器
-├── line_processor.py             # GPX 线数据解析
-├── line_renderer.py              # 线分级渲染器
-├── gradient_line_renderer.py     # 渐变线渲染器（InterpolatedLine，需 QGIS 3.40+）
-├── metadata.txt                  # QGIS 插件元数据
-├── icons/
-│   ├── icon.png                  # 插件管理器图标
-│   └── icon.svg                  # 工具栏图标
-└── README.md
-```
 
 ## 兼容性
 
@@ -84,6 +60,13 @@ GPL-2.0-or-later
 
 **ColorGPX** extracts speed and elevation information from GPX track_points layers, automatically calculates slope, generates point, line, or gradient line layers, and renders them with colors based on the corresponding attributes, making track data clear at a glance.
 
+## Screenshots
+
+| Speed | Elevation | Slope |
+| :---: | :---: | :---: |
+| ![Speed](screenshots/speed.png) | ![Elevation](screenshots/elevation.png) | ![Slope](screenshots/slope.png) |
+
+
 ## Features
 
 - **Point / Line / Gradient Line Rendering** — Three modes: point mode colors each point, line mode colors each segment, gradient line mode renders true interpolated gradients along the track (requires QGIS 3.40+)
@@ -94,21 +77,7 @@ GPL-2.0-or-later
 - **Reverse Color Ramp** — One-click reversal of gradient direction
 - **Gradient Line Properties** — Automatically sets the interpolated line symbol layer's min/max values (from `_S`/`_E` field extremes), label precision (1 decimal), and unit suffix (speed→m/s, elevation→m, slope→°)
 - **Output Control** — Create temporary layers or save as GeoJSON / GPKG / Shapefile
-- **Progress Bar** — Real-time display of algorithm processing progress
-- **Bilingual Interface** — UI language automatically switches based on QGIS system settings
 
-## Installation
-
-1. Download or clone this repository to the QGIS plugins directory:
-   ```
-   # Windows
-   %APPDATA%\QGIS\QGIS3\profiles\<profile>\python\plugins\ColorGPX
-
-   # macOS / Linux
-   ~/.local/share/QGIS/QGIS3/profiles/<profile>/python/plugins/ColorGPX
-   ```
-
-2. Open QGIS → Plugins → Manage and Install Plugins → Search for ColorGPX → Enable
 
 ## Usage
 
@@ -122,23 +91,6 @@ GPL-2.0-or-later
 4. Click **Run**
 5. The rendered layer will be automatically added to the map
 
-## Project Structure
-
-```text
-ColorGPX/
-├── __init__.py                   # Plugin entry point
-├── colorgpx.py                   # Main dialog and plugin logic
-├── point_processor.py            # GPX point data parsing
-├── point_renderer.py             # Point classification renderer
-├── line_processor.py             # GPX line data parsing
-├── line_renderer.py              # Line classification renderer
-├── gradient_line_renderer.py     # Gradient line renderer (InterpolatedLine, requires QGIS 3.40+)
-├── metadata.txt                  # QGIS plugin metadata
-├── icons/
-│   ├── icon.png                  # Plugin manager icon
-│   └── icon.svg                  # Toolbar icon
-└── README.md
-```
 
 ## Compatibility
 

@@ -14,6 +14,31 @@ try:
 except ImportError:
     import xml.etree.ElementTree as ET  # nosec B405
 import math
+from datetime import datetime, timezone
+
+
+def parse_iso_time_to_seconds(time_str):
+    if not time_str:
+        return None
+    time_str = time_str.strip()
+    if time_str.endswith('Z'):
+        time_str = time_str[:-1] + '+00:00'
+    try:
+        dt = datetime.fromisoformat(time_str)
+    except Exception:
+        dt = None
+        for fmt in ("%Y-%m-%dT%H:%M:%S.%f%z", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d %H:%M:%S"):
+            try:
+                dt = datetime.strptime(time_str, fmt)
+                break
+            except ValueError:
+                continue
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return (dt - datetime(1970, 1, 1)).total_seconds()
+
 
 
 def haversine_distance(lon1, lat1, lon2, lat2):
@@ -26,7 +51,7 @@ def haversine_distance(lon1, lat1, lon2, lat2):
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Slope", progress_callback=None):
+def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Slope", progress_callback=None, simulate_speed=False):
     """Parse GPX and return a LineStringZ memory layer.
 
     Points are grouped by track segment and exploded into individual
@@ -37,35 +62,7 @@ def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Sl
     tree = ET.parse(gpx_file)  # nosec B314
     root = tree.getroot()
 
-    # ---- collect raw trkpt values, tracking segment boundaries ---- #
-    points = []
-    seg_idx = 0
-    prev_tag = None
-    for elem in root.iter():
-        tag = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
-
-        # a new <trkseg> means the next <trkpt> starts a new segment
-        if tag == "trkseg":
-            prev_tag = tag
-            continue
-
-        if tag != "trkpt":
-            prev_tag = tag
-            continue
-
-        # first trkpt after a trkseg starts a new segment counter
-        if prev_tag == "trkseg":
-            seg_idx += 1
-            # (seg_idx starts at 0 for the first trkseg; here it becomes 1.
-            #  so we shift: the first trkseg gets seg_idx = 0)
-            # Actually simpler: increment seg_idx before processing the group.
-            pass
-
-        # Actually, let me rethink: track segments explicitly.
-        # Reset: iterate by finding <trkseg> and processing its children.
-        prev_tag = tag
-
-    # ---- simpler approach: iterate trk elements ---- #
+    # ---- iterate trk → trkseg → trkpt ---- #
     points = []
     seg_idx = 0
     for trk in root:
@@ -141,6 +138,38 @@ def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Sl
     seg_groups = {}
     for d in points:
         seg_groups.setdefault(d["seg_idx"], []).append(d)
+
+    if simulate_speed:
+        for seg_id, pts in seg_groups.items():
+            n = len(pts)
+            if n < 2:
+                for p in pts:
+                    p["speed"] = 0.0
+                continue
+
+            times = []
+            for p in pts:
+                times.append(parse_iso_time_to_seconds(p["time"]))
+
+            seg_speeds = []
+            for i in range(n - 1):
+                t1 = times[i]
+                t2 = times[i + 1]
+                if t1 is None or t2 is None:
+                    seg_speeds.append(0.0)
+                    continue
+                dt = t2 - t1
+                if dt <= 0:
+                    seg_speeds.append(0.0)
+                    continue
+                dist = haversine_distance(pts[i]["lon"], pts[i]["lat"], pts[i+1]["lon"], pts[i+1]["lat"])
+                seg_speeds.append(dist / dt)
+
+            pts[0]["speed"] = seg_speeds[0]
+            for j in range(1, n - 1):
+                pts[j]["speed"] = (seg_speeds[j - 1] + seg_speeds[j]) / 2.0
+            pts[n - 1]["speed"] = seg_speeds[-1]
+
 
     # ---- compute segment slope and smooth with bidirectional EMA ---- #
     # Minimum elevation difference threshold to avoid GPS noise (meters)

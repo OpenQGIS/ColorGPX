@@ -1,12 +1,12 @@
 [general]
 name=ColorGPX
-description=Render GPX tracks as gradient-colored layers by speed, elevation or slope, with support for extensions (Guru Maps, OsmAnd, etc.). GPX轨迹按速度/高度/坡度渲染工具，支持extensions扩展速度/高程（Guru Maps、OsmAnd等）
-version=2.6.3
+description=GPX轨迹按速度/高度/坡度渲染工具，支持extensions扩展速度/高程（Guru Maps、OsmAnd等）。 / Render GPX tracks as gradient-colored layers by speed, elevation or slope, with support for extensions (Guru Maps, OsmAnd, etc.). 
+version=2.7.0
 qgisMinimumVersion=3.1
 qgisMaximumVersion=4.99
 author=OpenQGIS
 email=OpenQGIS@outlook.com
-about=Extracts speed, elevation and slope data from GPX track_points layers, generates point, line, or gradient line layers, and renders them with classified colors. Supports Jenks natural breaks for point/line modes and true interpolated gradient along lines. Also reads speed and elevation from GPX extensions (Guru Maps, OsmAnd, etc.). 提取GPX的track points图层的速度（speed）、高程（elevation）和坡度（slope）信息，生成点、线或渐变线图层，并根据对应属性进行彩色化渲染。支持点/线的Jenks自然断点分级和沿线真实渐变。支持从GPX extensions中读取速度和高程（Guru Maps、OsmAnd等应用）。
+about=提取GPX的track points图层的速度（speed）、高程（elevation）和坡度（slope）信息，生成点、线或渐变线图层，并根据对应属性进行彩色化渲染。支持点/线的Jenks自然断点分级和沿线真实渐变。支持从GPX extensions中读取速度和高程（Guru Maps、OsmAnd等应用）。/ Extracts speed, elevation and slope data from GPX track_points layers, generates point, line, or gradient line layers, and renders them with classified colors. Supports Jenks natural breaks for point/line modes and true interpolated gradient along lines. Also reads speed and elevation from GPX extensions (Guru Maps, OsmAnd, etc.).
 tracker=https://github.com/OpenQGIS/ColorGPX/issues
 repository=https://github.com/OpenQGIS/ColorGPX
 tags=GPX,Analysis,gradient,interpolated,slope,degree,extensions,Guru Maps,OsmAnd
@@ -14,26 +14,43 @@ homepage=https://github.com/OpenQGIS/ColorGPX
 category=Analysis
 icon=icons/icon.png
 changelog=
+  v2.7.0 2026/7/22:
+  * 新增无高度和时间数据时的检测机制，自动禁用所有渲染字段，并切换为红色警告图标与详细提示 (Added validation for layers missing both elevation and time; disables render fields and displays red warning status)
+  * 全面补全新警告文案的 12 种语言翻译文件 (.ts) 并编译为二进制翻译包 (.qm) (Completed missing translations for all 12 languages (.ts) and compiled to (.qm))
+  * 移除 line_processor 中的无效死代码段与渲染逻辑中的控制台调试 print 语句 (Removed dead code in line_processor and debug print logs to clean up runtime footprint)
+
+  v2.6.4 2026/7/22:
+  * 新增原生速度缺失时的模拟速度计算功能（距离除以时间），平滑映射至每个轨迹点 (Added simulated speed calculation using distance/time when native speed is missing)
+  * 新增速度警告及软件推荐弹窗 UI，提高交互友好性 (Added speed warning indicator and recommendation dialog UI)
+
   v2.6.3 2026/7/21:
   * 修复与 QGIS 4.0 的枚举兼容性问题以支持最新 QGIS 版本 (Fixed enum compatibility issues with QGIS 4.0)
   * 根据 QGIS 插件审查要求重构 XML 安全解析逻辑，消除 Bandit 漏洞警告 (Secured XML parsing logic to resolve security warnings for QGIS repository approval)
   * 移除未使用的开发脚本，精简插件包体积 (Removed unused development scripts)
+
   v2.6.0 2026/6/29:
   * 工具栏图标改为独立可移动工具栏，支持拖拽停靠（Changed to independent movable toolbar, supports drag-and-dock）
+
   v2.5.0 2026/6/19:
   * 坡度输出改为角度（°），值越大越陡峭（Slope output changed to degrees (°), steeper = larger value）
+
   v2.4.0 2026/6/19:
   * 优化坡度算法：下坡为负值，双向EMA平滑过渡，GPS噪声阈值过滤（Optimized slope algorithm: negative downhill, bidirectional EMA smoothing, GPS noise threshold filtering）
   * 兼容QGIS 4 / PyQt6（Fixed compatibility with QGIS 4 / PyQt6）
+
   v2.3.0 2026/6/19:
   * 重命名插件为 ColorGPX（Renamed plugin to ColorGPX）
   * 新增坡度（Slope）渲染字段，基于Haversine距离与高差计算（Added Slope rendering field, calculated from Haversine distance and elevation difference）
+
   v2.2.0 2026/6/19:
   * 支持从GPX extensions中读取速度和高程（兼容Guru Maps、OsmAnd等应用）（Added support for reading speed/elevation from GPX extensions (Guru Maps, OsmAnd, etc.)）
+
   v2.1.0 2026/6/15:
   * 添加渐变线样式 [QGIS 3.40+]（Added gradient line rendering [QGIS 3.40+]）
   * 固定插值线的最小/最大值、颜色渐变同步、标签精度以及单位后缀 （Fixed interpolated line min/max, color ramp sync, label precision , and unit suffix）
+
   v2.0.0 2026/6/14:
   * 新增线条密度调节、反向斜坡功能及输出控制功能（Added line densification, reverse ramp, output control.）
+
   v1.1 2026/6/12:
   * 首次发布（Initial release）
