@@ -1,20 +1,33 @@
 from qgis.core import QgsVectorLayer, QgsField, QgsFeature, QgsPoint, QgsGeometry, QgsCoordinateReferenceSystem
-from qgis.PyQt.QtCore import QVariant
+from qgis.PyQt.QtCore import QVariant, QDateTime, Qt
 try:
     from qgis.PyQt.QtCore import QMetaType
     _Int = QMetaType.Type.Int
     _Double = QMetaType.Type.Double
     _String = QMetaType.Type.QString
+    _DateTime = QMetaType.Type.QDateTime
 except (ImportError, AttributeError):
     _Int = QVariant.Int
     _Double = QVariant.Double
     _String = QVariant.String
+    _DateTime = QVariant.DateTime
 try:
     import defusedxml.ElementTree as ET
 except ImportError:
     import xml.etree.ElementTree as ET  # nosec B405
 import math
 from datetime import datetime, timezone
+def parse_iso_time_to_qdatetime(time_str):
+    if not time_str:
+        return QDateTime()
+    time_str = time_str.strip()
+    if " " in time_str:
+        time_str = time_str.replace(" ", "T")
+    dt = QDateTime.fromString(time_str, Qt.ISODate)
+    if dt.isValid():
+        return dt
+    return QDateTime()
+
 
 
 def parse_iso_time_to_seconds(time_str):
@@ -51,8 +64,10 @@ def haversine_distance(lon1, lat1, lon2, lat2):
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def process_points(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Slope", progress_callback=None, simulate_speed=False):
+def process_points(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Slope", progress_callback=None, simulate_speed=False, elev_unit="m", speed_unit="m/s", slope_unit="°"):
     """Parse GPX and return a PointZM memory layer with speed, elevation, slope, time, track_seg_point_id."""
+    elev_scale = 3.28084 if elev_unit == "ft" else 1.0
+    speed_scale = 3.6 if speed_unit == "km/h" else (2.23694 if speed_unit == "mph" else 1.0)
 
     tree = ET.parse(gpx_file)  # nosec B314
     root = tree.getroot()
@@ -71,27 +86,29 @@ def process_points(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="S
             time_val = ""
             for child in trkpt:
                 ct = child.tag.split("}")[-1] if "}" in child.tag else child.tag
-                if ct == "ele":
+                ct_lower = ct.lower()
+                if ct_lower in ("ele", "elevation", "altitude", "alt", "height"):
                     try:
                         ele = float(child.text)
                     except (ValueError, TypeError):
                         pass
-                elif ct == "speed":
+                elif ct_lower == "speed":
                     try:
                         speed = float(child.text)
                     except (ValueError, TypeError):
                         pass
-                elif ct == "time":
+                elif ct_lower == "time":
                     time_val = child.text or ""
-                elif ct == "extensions":
+                elif ct_lower == "extensions":
                     for ext_child in child:
                         ect = ext_child.tag.split("}")[-1] if "}" in ext_child.tag else ext_child.tag
-                        if ect == "speed":
+                        ect_lower = ect.lower()
+                        if ect_lower == "speed":
                             try:
                                 speed = float(ext_child.text)
                             except (ValueError, TypeError):
                                 pass
-                        elif ect == "ele":
+                        elif ect_lower in ("ele", "elevation", "altitude", "alt", "height"):
                             try:
                                 ele = float(ext_child.text)
                             except (ValueError, TypeError):
@@ -114,7 +131,7 @@ def process_points(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="S
         QgsField(speed_name, _Double, "double"),
         QgsField(elev_name, _Double, "double"),
         QgsField(slope_name, _Double, "double"),
-        QgsField("time", _String, "string"),
+        QgsField("time", _DateTime, "datetime"),
         QgsField("track_seg_point_id", _Int, "integer"),
     ])
     out.updateFields()
@@ -167,13 +184,23 @@ def process_points(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="S
                 p2 = pts[pt_idx + 1]
                 dist = haversine_distance(d["lon"], d["lat"], p2["lon"], p2["lat"])
                 d_ele = p2["ele"] - d["ele"]
-                slope = round(math.degrees(math.atan(d_ele / dist)), 3) if abs(d_ele) >= MIN_ELE_DIFF and dist > 0 else 0.0
+                if abs(d_ele) >= MIN_ELE_DIFF and dist > 0:
+                    if slope_unit == "%":
+                        slope = round((d_ele / dist) * 100, 3)
+                    else:
+                        slope = round(math.degrees(math.atan(d_ele / dist)), 3)
+                else:
+                    slope = 0.0
             else:
                 slope = 0.0
+
+            ele_conv = round(d["ele"] * elev_scale, 3)
+            speed_conv = round(d["speed"] * speed_scale, 3)
+
             f = QgsFeature(out.fields())
-            pt = QgsPoint(d["lon"], d["lat"], d["ele"], d["speed"])
+            pt = QgsPoint(d["lon"], d["lat"], ele_conv, speed_conv)
             f.setGeometry(QgsGeometry(pt))
-            f.setAttributes([d["speed"], d["ele"], slope, d["time"], pt_idx])
+            f.setAttributes([speed_conv, ele_conv, slope, parse_iso_time_to_qdatetime(d["time"]), pt_idx])
             feats.append(f)
             if progress_callback:
                 progress_callback(len(feats), total)

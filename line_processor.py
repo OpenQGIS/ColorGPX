@@ -1,20 +1,37 @@
 from qgis.core import QgsVectorLayer, QgsField, QgsFeature, QgsPoint, QgsGeometry, QgsCoordinateReferenceSystem
-from qgis.PyQt.QtCore import QVariant
+from qgis.PyQt.QtCore import QVariant, QDateTime, Qt
 try:
     from qgis.PyQt.QtCore import QMetaType
     _Int = QMetaType.Type.Int
     _Double = QMetaType.Type.Double
     _String = QMetaType.Type.QString
+    _DateTime = QMetaType.Type.QDateTime
 except (ImportError, AttributeError):
     _Int = QVariant.Int
     _Double = QVariant.Double
     _String = QVariant.String
+    _DateTime = QVariant.DateTime
 try:
     import defusedxml.ElementTree as ET
 except ImportError:
     import xml.etree.ElementTree as ET  # nosec B405
 import math
 from datetime import datetime, timezone
+def parse_iso_time_to_qdatetime(time_str):
+    if not time_str:
+        return QDateTime()
+    time_str = time_str.strip()
+    if " " in time_str:
+        time_str = time_str.replace(" ", "T")
+    # Compatibility support for PyQt5 and PyQt6 enums
+    if hasattr(Qt, 'DateFormat') and hasattr(Qt.DateFormat, 'ISODate'):
+        dt = QDateTime.fromString(time_str, Qt.DateFormat.ISODate)
+    else:
+        dt = QDateTime.fromString(time_str, Qt.ISODate)
+    if dt.isValid():
+        return dt
+    return QDateTime()
+
 
 
 def parse_iso_time_to_seconds(time_str):
@@ -51,13 +68,15 @@ def haversine_distance(lon1, lat1, lon2, lat2):
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Slope", progress_callback=None, simulate_speed=False):
+def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Slope", progress_callback=None, simulate_speed=False, elev_unit="m", speed_unit="m/s", slope_unit="°"):
     """Parse GPX and return a LineStringZ memory layer.
 
     Points are grouped by track segment and exploded into individual
     2-point line segments.  Each segment carries the average speed
     and elevation of its endpoints.
     """
+    elev_scale = 3.28084 if elev_unit == "ft" else 1.0
+    speed_scale = 3.6 if speed_unit == "km/h" else (2.23694 if speed_unit == "mph" else 1.0)
 
     tree = ET.parse(gpx_file)  # nosec B314
     root = tree.getroot()
@@ -80,27 +99,29 @@ def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Sl
                 time_val = ""
                 for child in trkpt:
                     ct = child.tag.split("}")[-1] if "}" in child.tag else child.tag
-                    if ct == "ele":
+                    ct_lower = ct.lower()
+                    if ct_lower in ("ele", "elevation", "altitude", "alt", "height"):
                         try:
                             ele = float(child.text)
                         except (ValueError, TypeError):
                             pass
-                    elif ct == "speed":
+                    elif ct_lower == "speed":
                         try:
                             speed = float(child.text)
                         except (ValueError, TypeError):
                             pass
-                    elif ct == "time":
+                    elif ct_lower == "time":
                         time_val = child.text or ""
-                    elif ct == "extensions":
+                    elif ct_lower == "extensions":
                         for ext_child in child:
                             ect = ext_child.tag.split("}")[-1] if "}" in ext_child.tag else ext_child.tag
-                            if ect == "speed":
+                            ect_lower = ect.lower()
+                            if ect_lower == "speed":
                                 try:
                                     speed = float(ext_child.text)
                                 except (ValueError, TypeError):
                                     pass
-                            elif ect == "ele":
+                            elif ect_lower in ("ele", "elevation", "altitude", "alt", "height"):
                                 try:
                                     ele = float(ext_child.text)
                                 except (ValueError, TypeError):
@@ -121,7 +142,8 @@ def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Sl
     provider = out.dataProvider()
     provider.addAttributes([
         QgsField("ID", _Int, "integer"),
-        QgsField("time", _String, "string"),
+        QgsField("time", _DateTime, "datetime"),
+        QgsField("time_E", _DateTime, "datetime"),
         QgsField(speed_name, _Double, "double"),
         QgsField(elev_name, _Double, "double"),
         QgsField(speed_name + "_S", _Double, "double"),
@@ -184,7 +206,14 @@ def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Sl
         for i in range(n - 1):
             dist = haversine_distance(pts[i]["lon"], pts[i]["lat"], pts[i+1]["lon"], pts[i+1]["lat"])
             d_ele = pts[i+1]["ele"] - pts[i]["ele"]
-            slopes.append(math.degrees(math.atan(d_ele / dist)) if abs(d_ele) >= MIN_ELE_DIFF and dist > 0 else 0.0)
+            if abs(d_ele) >= MIN_ELE_DIFF and dist > 0:
+                if slope_unit == "%":
+                    val = (d_ele / dist) * 100
+                else:
+                    val = math.degrees(math.atan(d_ele / dist))
+            else:
+                val = 0.0
+            slopes.append(val)
 
         if n < 2:
             smoothed_point_slopes[seg_id] = [0.0] * n
@@ -226,20 +255,31 @@ def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Sl
             slope_s = round(point_slopes[i], 3)
             slope_e = round(point_slopes[i + 1], 3)
             slope_avg = round((slope_s + slope_e) / 2.0, 3)
+
+            # Converted and rounded values
+            ele1_conv = round(p1["ele"] * elev_scale, 3)
+            ele2_conv = round(p2["ele"] * elev_scale, 3)
+            ele_avg_conv = round(((p1["ele"] + p2["ele"]) / 2.0) * elev_scale, 3)
+
+            speed1_conv = round(p1["speed"] * speed_scale, 3)
+            speed2_conv = round(p2["speed"] * speed_scale, 3)
+            speed_avg_conv = round(((p1["speed"] + p2["speed"]) / 2.0) * speed_scale, 3)
+
             # Generate sub-segments (original or densified)
             segments = [(p1, p2)]
             # Create features for each sub-segment
             for d1, d2 in segments:
-                g1 = QgsPoint(d1["lon"], d1["lat"], d1["ele"], d1["speed"])
-                g2 = QgsPoint(d2["lon"], d2["lat"], d2["ele"], d2["speed"])
+                g1 = QgsPoint(d1["lon"], d1["lat"], ele1_conv, speed1_conv)
+                g2 = QgsPoint(d2["lon"], d2["lat"], ele2_conv, speed2_conv)
                 line = QgsGeometry.fromPolyline([g1, g2])
                 f = QgsFeature(out.fields())
                 f.setGeometry(line)
-                f.setAttributes([i, d1["time"],
-                                 (d1["speed"] + d2["speed"]) / 2.0,
-                                 (d1["ele"] + d2["ele"]) / 2.0,
-                                 d1["speed"], d2["speed"],
-                                 d1["ele"], d2["ele"],
+                f.setAttributes([i, parse_iso_time_to_qdatetime(d1["time"]),
+                                 parse_iso_time_to_qdatetime(d2["time"]),
+                                 speed_avg_conv,
+                                 ele_avg_conv,
+                                 speed1_conv, speed2_conv,
+                                 ele1_conv, ele2_conv,
                                  slope_avg, slope_s, slope_e])
                 feats.append(f)
                 done += 1
