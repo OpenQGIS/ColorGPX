@@ -26,15 +26,15 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="px"
-     inkscape:zoom="3.0507813"
-     inkscape:cx="129.31114"
-     inkscape:cy="17.536492"
+     inkscape:zoom="4.3144562"
+     inkscape:cx="248.11933"
+     inkscape:cy="26.306907"
      inkscape:window-width="1920"
      inkscape:window-height="1001"
      inkscape:window-x="-9"
      inkscape:window-y="41"
      inkscape:window-maximized="1"
-     inkscape:current-layer="g37"><inkscape:page
+     inkscape:current-layer="layer1"><inkscape:page
        x="0"
        y="0"
        width="32"
@@ -177,6 +177,7 @@
      inkscape:label="图层 1"
      inkscape:groupmode="layer"
      id="layer1"
+     style="display:inline"
      transform="translate(-126)"><path
        d="m 147.03987,23.468777 2.50842,5.379366 c 0.14095,0.302188 0.01,0.661166 -0.29188,0.802109 l -2.188,1.020143 c -0.30221,0.140944 -0.66117,0.01022 -0.80212,-0.29189 l -2.56551,-5.501771 -3.1543,3.154295 c -0.23568,0.235689 -0.61762,0.235689 -0.8533,2.99e-4 A 0.60378853,0.60378853 0 0 1 139.51634,27.60438 V 12.319873 c 0,-0.333379 0.27012,-0.603493 0.60349,-0.603493 0.15006,0 0.29484,0.05591 0.40606,0.156832 l 11.23275,10.211734 c 0.2466,0.224215 0.26483,0.605848 0.0406,0.852426 a 0.60370026,0.60370026 0 0 1 -0.40017,0.195671 z"
        p-id="10602"

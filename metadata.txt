@@ -1,19 +1,45 @@
 [general]
 name=ColorGPX
-description=GPX轨迹按速度/高度/坡度渲染工具，支持extensions扩展速度/高程（Guru Maps、OsmAnd等）。 / Render GPX tracks as gradient-colored layers by speed, elevation or slope, with support for extensions (Guru Maps, OsmAnd, etc.). 
-version=3.0.0
+description=GPX轨迹按速度/高度/坡度渲染及批量处理工具，支持工程图层、单个或多个GPX和extensions扩展字段。 / Render and batch-process GPX tracks by speed, elevation or slope from project layers or one/many GPX files, including extension fields.
+version=3.6.0
 qgisMinimumVersion=3.1
 qgisMaximumVersion=4.99
 author=OpenQGIS
 email=OpenQGIS@outlook.com
-about=提取GPX的track points图层的速度（speed）、高程（elevation）和坡度（slope）信息，生成点、线或渐变线图层，并根据对应属性进行彩色化渲染。支持点/线的Jenks自然断点分级和沿线真实渐变。支持从GPX extensions中读取速度和高程（Guru Maps、OsmAnd等应用）。/ Extracts speed, elevation and slope data from GPX track_points layers, generates point, line, or gradient line layers, and renders them with classified colors. Supports Jenks natural breaks for point/line modes and true interpolated gradient along lines. Also reads speed and elevation from GPX extensions (Guru Maps, OsmAnd, etc.).
+about=提取GPX轨迹的速度、高程和坡度信息，生成点、线或渐变线图层并进行彩色化渲染。统一支持QGIS工程图层、单个/多个GPX及文件夹批量输入，提供字段预检查、模拟速度、临时/独立文件/单一GeoPackage输出和结果报告。 / Extracts and renders speed, elevation and slope from GPX tracks. Supports project layers, one or many GPX files, and folder batches through a unified queue with capability checks, simulated speed, temporary/separate/single-GeoPackage outputs, and result reports.
 tracker=https://github.com/OpenQGIS/ColorGPX/issues
 repository=https://github.com/OpenQGIS/ColorGPX
-tags=GPX,Analysis,gradient,interpolated,slope,degree,extensions,Guru Maps,OsmAnd
+tags=GPX,Analysis,gradient,interpolated,slope,degree,extensions
 homepage=https://github.com/OpenQGIS/ColorGPX
 category=Analysis
 icon=icons/icon.png
 changelog=
+  Version 3.6.0:
+  - ⚡ 优化代码架构与资源占用，专注于单轨迹与 GPX 批量渲染处理。 / Optimized code architecture and resource usage, focusing on single-track and GPX batch rendering.
+  - ✨ 保留并优化单轨迹与 GPX 批量处理队列，支持多来源输入、能力预检查、多输出模式及批处理报告。 / Retained and optimized single-track and GPX batch processing modules with multi-source queue, capability preflight, multi-output options, and result reports.
+  - 🎨 优化独立工具栏与专属图标。 / Refined standalone toolbar and action icons.
+
+  Version 3.4.2:
+  - 🚀 优化批量生成窗口为 750 px 紧凑布局，渲染与输出选项改为完整可见的单选项，并支持折叠全局设置及输出设置。 / Improved the batch generator with a compact 750 px layout, fully visible radio options, and collapsible global and output settings.
+
+  Version 3.4.0:
+  - ✨ 将单轨迹生成与批量生成拆分为两个独立入口，分别提供紧凑生成器及多来源队列、预检查、输出策略和结果报告。 / Split single-track and batch generation into separate workflows with a compact generator and a multi-source queue, preflight checks, output policies, and result reports.
+
+  Version 3.3.2:
+  - 📋 新增批处理结果报告，分类显示完整、部分、跳过和失败任务，支持CSV导出、定位图层、打开输出目录和失败重试。 / Added batch result reports with complete/partial/skipped/failed categories, CSV export, layer location, output-folder access, and failed-task retry.
+  - 🔒 完成批量处理安全加固：路径规范化、目录边界校验、资源上限、符号链接过滤、CSV公式注入防护和覆盖二次确认。 / Hardened batch processing with path normalization, output-boundary checks, resource limits, symlink filtering, CSV formula-injection protection, and overwrite confirmation.
+  - 🧩 处理与渲染成功后才将结果加入工程，失败任务不会留下半成品图层。 / Results are added to the project only after processing and rendering succeed, preventing partial layers after failures.
+
+  Version 3.3.1:
+  - 💾 新增临时图层、每任务独立文件和单一GeoPackage三种批量输出模式。 / Added temporary-layer, per-task file, and single-GeoPackage batch output modes.
+  - 🏷️ 新增命名模板、自动序号、跳过和确认覆盖等重名策略，并将结果自动归入带时间戳的图层组。 / Added naming templates, suffix/skip/confirmed-overwrite collision policies, and timestamped result groups.
+  - ⏳ 新增总体进度、任务状态更新、任务间取消以及单任务失败隔离。 / Added overall progress, per-task status updates, between-task cancellation, and failure isolation.
+
+  Version 3.3.0:
+  - 🗂️ 将单文件生成面板升级为统一任务队列，支持QGIS工程图层、一个/多个GPX文件及文件夹扫描。 / Replaced the single-input panel with a unified queue for project layers, one/many GPX files, and folder scans.
+  - 🔎 新增时间、高程、速度和坡度能力预检查，区分原始/扩展/模拟速度及完整、部分和不可运行状态。 / Added capability preflight for time, elevation, speed, and slope, including original/extension/simulated speed and ready/partial/blocked states.
+  - ⚙️ 新增继续处理、严格模式和仅完整任务三种异常策略，并保留自定义字段名、单位及色带设置。 / Added continue, strict, and complete-only policies while retaining custom fields, units, and color ramps.
+
   Version 3.0.0:
   - 🐛 修复跨投影坐标系（CRS）下的计算偏差，使定位十字星高精度紧贴轨迹线。 / Fixed coordinates mismatch under different CRS configurations, making crosshairs snap precisely to track lines.
   - ✨ 新增图层选择面板下方的左右键锁定/解锁操作提示。 / Added mouse click lock/unlock operation tips in the layer selection panel.

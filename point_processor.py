@@ -1,4 +1,4 @@
-from qgis.core import QgsVectorLayer, QgsField, QgsFeature, QgsPoint, QgsGeometry, QgsCoordinateReferenceSystem
+from qgis.core import QgsVectorLayer, QgsField, QgsFeature, QgsPoint, QgsGeometry, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsPointXY, QgsProject
 from qgis.PyQt.QtCore import QVariant, QDateTime, Qt
 try:
     from qgis.PyQt.QtCore import QMetaType
@@ -23,7 +23,7 @@ def parse_iso_time_to_qdatetime(time_str):
     time_str = time_str.strip()
     if " " in time_str:
         time_str = time_str.replace(" ", "T")
-    dt = QDateTime.fromString(time_str, Qt.ISODate)
+    dt = QDateTime.fromString(time_str, Qt.DateFormat.ISODate)
     if dt.isValid():
         return dt
     return QDateTime()
@@ -123,9 +123,19 @@ def process_points(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="S
             ))
         seg_idx += 1
 
-    # memory layer: PointZM (ele -> Z, speed -> M)
-    crs = QgsCoordinateReferenceSystem("EPSG:4326")
-    out = QgsVectorLayer(f"PointZM?crs={crs.authid()}", "colorGPX_points", "memory")
+    # Determine local UTM zone based on track coordinates center
+    lons = [p["lon"] for p in points]
+    lats = [p["lat"] for p in points]
+    center_lon = sum(lons) / len(lons) if lons else 0.0
+    center_lat = sum(lats) / len(lats) if lats else 0.0
+    center_lon = max(-180.0, min(180.0, center_lon))
+    zone = int((center_lon + 180.0) / 6.0) + 1
+    zone = max(1, min(60, zone))
+    epsg = 32600 + zone if center_lat >= 0 else 32700 + zone
+    utm_crs = QgsCoordinateReferenceSystem(f"EPSG:{epsg}")
+    
+    transform = QgsCoordinateTransform(QgsCoordinateReferenceSystem("EPSG:4326"), utm_crs, QgsProject.instance())
+    out = QgsVectorLayer(f"PointZ?crs={utm_crs.authid()}", "colorGPX_points", "memory")
     provider = out.dataProvider()
     provider.addAttributes([
         QgsField(speed_name, _Double, "double"),
@@ -198,7 +208,8 @@ def process_points(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="S
             speed_conv = round(d["speed"] * speed_scale, 3)
 
             f = QgsFeature(out.fields())
-            pt = QgsPoint(d["lon"], d["lat"], ele_conv, speed_conv)
+            pt_proj = transform.transform(QgsPointXY(d["lon"], d["lat"]))
+            pt = QgsPoint(pt_proj.x(), pt_proj.y(), ele_conv)
             f.setGeometry(QgsGeometry(pt))
             f.setAttributes([speed_conv, ele_conv, slope, parse_iso_time_to_qdatetime(d["time"]), pt_idx])
             feats.append(f)
@@ -206,4 +217,5 @@ def process_points(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="S
                 progress_callback(len(feats), total)
 
     provider.addFeatures(feats)
+    out.updateExtents()
     return out

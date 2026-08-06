@@ -2,12 +2,11 @@ from qgis.PyQt.QtWidgets import (QAction, QDialog, QVBoxLayout, QHBoxLayout, QGr
                                  QLabel, QComboBox, QLineEdit, QPushButton,
                                  QMessageBox, QFileDialog, QTextEdit, QProgressBar, QMenu,
                                  QListWidget, QListWidgetItem, QCheckBox, QSizePolicy, QApplication,
-                                 QSlider, QWidget, QGroupBox, QFrame, QLayout)
+                                 QSlider, QWidget, QGroupBox, QFrame, QLayout, QRadioButton, QButtonGroup)
 from qgis.PyQt.QtGui import QIcon, QPixmap, QPainter, QColor, QCursor
 from qgis.PyQt.QtCore import Qt, QSize, QTimer, QTranslator, QLocale, QCoreApplication, QPoint, QDateTime
 from qgis.core import *
 from qgis.gui import QgsMapTool, QgsVertexMarker
-from qgis.PyQt.QtWidgets import QRadioButton, QButtonGroup
 import os
 import re
 
@@ -15,7 +14,6 @@ try:
     import defusedxml.ElementTree as ET
 except ImportError:
     import xml.etree.ElementTree as ET  # nosec B405
-
 
 
 _zh_translations = {
@@ -39,11 +37,10 @@ _zh_translations = {
     "Units": "显示单位",
     "Hover Track Info": "悬浮轨迹查看工具",
     "Hover Settings": "悬浮窗口设置",
+    "Batch Generate ColorGPX": "批量生成彩色轨迹",
     "Select Tracking Layer": "选择追踪图层",
     "Available Layers": "可用图层",
     "Start Tracking": "开始追踪",
-    "No vector layers found in the project.": "工程中未找到任何向量图层。",
-    "💡 Tip:\nLock position info: Left-click.\nUnlock position: Right-click / click blank area.": "💡 提示：\n锁定位置信息：鼠标左键。\n解除位置锁定：鼠标右键 / 点击空白区域。",
 }
 
 
@@ -65,6 +62,158 @@ from .point_renderer import apply_renderer as apply_point_renderer
 from .line_processor import process_lines
 from .line_renderer import apply_renderer as apply_line_renderer
 from .gradient_line_renderer import apply_gradient_renderer
+from .batch_generation import BatchGenerationDialog
+from .ui_style import qgis_ui_tokens, rgba_css, style_primary_button
+
+
+class ColorGPXDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(tr("ColorGPX - Settings"))
+        self.setMinimumWidth(500)
+
+        main_layout = QVBoxLayout(self)
+
+        # ---- left panel ---- #
+        left_layout = QVBoxLayout()
+        left_layout.addWidget(QLabel(tr("Input layer (GPX track_points):")))
+        self.layer_combo = QComboBox()
+        self.refresh_layers()
+        left_layout.addWidget(self.layer_combo)
+
+        left_layout.addWidget(QLabel(tr("Render mode:")))
+        self.render_mode_group = QButtonGroup()
+        self.rb_point = QRadioButton(tr("Point"))
+        self.rb_line = QRadioButton(tr("Line"))
+        self.rb_gradient = QRadioButton(tr("Gradient Line"))
+        self.render_mode_group.addButton(self.rb_point)
+        self.render_mode_group.addButton(self.rb_line)
+        self.render_mode_group.addButton(self.rb_gradient)
+        self.rb_point.setChecked(True)
+        self.rb_point.toggled.connect(self._on_mode_changed)
+        self.rb_line.toggled.connect(self._on_mode_changed)
+        self.rb_gradient.toggled.connect(self._on_mode_changed)
+
+        mode_grid = QGridLayout()
+        mode_grid.setSpacing(10)
+        mode_grid.setContentsMargins(0, 0, 0, 0)
+        mode_grid.setColumnMinimumWidth(0, 90)
+        mode_grid.setColumnMinimumWidth(1, 90)
+        mode_grid.setColumnMinimumWidth(2, 90)
+        mode_grid.setColumnStretch(0, 0)
+        mode_grid.setColumnStretch(1, 0)
+        mode_grid.setColumnStretch(2, 0)
+        mode_grid.setColumnStretch(3, 1)
+        mode_grid.addWidget(self.rb_point, 0, 0)
+        mode_grid.addWidget(self.rb_line, 0, 1)
+        mode_grid.addWidget(self.rb_gradient, 0, 2)
+        left_layout.addLayout(mode_grid)
+
+        left_layout.addWidget(QLabel(tr("Render field:")))
+        self.render_type_group = QButtonGroup()
+        self.rb_speed = QRadioButton(tr("Speed"))
+        self.rb_elevation = QRadioButton(tr("Elevation"))
+        self.rb_slope = QRadioButton(tr("Slope"))
+        self.render_type_group.addButton(self.rb_speed)
+        self.render_type_group.addButton(self.rb_elevation)
+        self.render_type_group.addButton(self.rb_slope)
+        self.rb_speed.setChecked(True)
+
+        type_grid = QGridLayout()
+        type_grid.setSpacing(10)
+        type_grid.setContentsMargins(0, 0, 0, 0)
+        type_grid.setColumnMinimumWidth(0, 90)
+        type_grid.setColumnMinimumWidth(1, 90)
+        type_grid.setColumnMinimumWidth(2, 90)
+        type_grid.setColumnStretch(0, 0)
+        type_grid.setColumnStretch(1, 0)
+        type_grid.setColumnStretch(2, 0)
+        type_grid.setColumnStretch(3, 1)
+        type_grid.addWidget(self.rb_elevation, 0, 0)
+        type_grid.addWidget(self.rb_slope, 0, 1)
+
+        speed_layout = QHBoxLayout()
+        speed_layout.setContentsMargins(0, 0, 0, 0)
+        speed_layout.setSpacing(2)
+        speed_layout.addWidget(self.rb_speed)
+
+        self.speed_warn_btn = QPushButton()
+        self._icon_warn_yellow = QIcon(os.path.join(os.path.dirname(__file__), "icons_Component", "warning_yellow.svg"))
+        self._icon_warn_red = QIcon(os.path.join(os.path.dirname(__file__), "icons_Component", "warning_red.svg"))
+        self.speed_warn_btn.setIcon(self._icon_warn_yellow)
+        self.speed_warn_btn.setIconSize(QSize(16, 16))
+        self.speed_warn_btn.setStyleSheet("QPushButton { border: none; background: transparent; }")
+        self.speed_warn_btn.setToolTip(tr("Current speed is simulated speed. Click for more details."))
+        self.speed_warn_btn.setVisible(False)
+        self.speed_warn_btn.clicked.connect(self._show_speed_warning)
+        speed_layout.addWidget(self.speed_warn_btn)
+
+        speed_widget = QWidget()
+        speed_widget.setLayout(speed_layout)
+        type_grid.addWidget(speed_widget, 0, 2)
+
+        self.elev_unit_combo = QComboBox()
+        self.elev_unit_combo.addItems(["m", "ft"])
+        self.elev_unit_combo.setFixedWidth(60)
+
+        self.slope_unit_combo = QComboBox()
+        self.slope_unit_combo.addItems(["°", "%"])
+        self.slope_unit_combo.setFixedWidth(60)
+
+        self.speed_unit_combo = QComboBox()
+        self.speed_unit_combo.addItems(["m/s", "km/h", "mph"])
+        self.speed_unit_combo.setFixedWidth(60)
+
+        type_grid.addWidget(self.elev_unit_combo, 1, 0)
+        type_grid.addWidget(self.slope_unit_combo, 1, 1)
+        type_grid.addWidget(self.speed_unit_combo, 1, 2)
+
+        left_layout.addLayout(type_grid)
+
+        left_layout.addWidget(QLabel(tr("Color ramp:")))
+        ramp_row = QHBoxLayout()
+        self.ramp_preview = QLabel()
+        self.ramp_preview.setFixedSize(74, 22)
+        ramp_row.addWidget(self.ramp_preview)
+        self.ramp_display = QLineEdit()
+        self.ramp_display.setReadOnly(True)
+        ramp_row.addWidget(self.ramp_display, stretch=1)
+        self.ramp_btn = QPushButton(tr("Select..."))
+        self.ramp_btn.clicked.connect(self._pick_color_ramp)
+        ramp_row.addWidget(self.ramp_btn)
+        left_layout.addLayout(ramp_row)
+        # Initialize with first color ramp
+        try:
+            ramp_names = QgsStyle().defaultStyle().colorRampNames()
+            if ramp_names:
+                self.ramp_display.setText(ramp_names[0])
+                ramp = QgsStyle().defaultStyle().colorRamp(ramp_names[0])
+                if ramp:
+                    icon = self._make_ramp_preview(ramp)
+                    self.ramp_preview.setPixmap(icon.pixmap(74, 22))
+        except Exception as e:
+            print(f"ColorGPX: Error during default color ramp initialization: {e}")
+
+        # ---- reverse ramp checkbox ---- #
+        ramp_rev_row = QHBoxLayout()
+        self.reverse_cb = QCheckBox(tr("Reverse ramp"))
+        self.processing_callback = None
+        self.reverse_cb.toggled.connect(self._update_ramp_preview)
+        ramp_rev_row.addWidget(self.reverse_cb)
+        ramp_rev_row.addStretch()
+        left_layout.addLayout(ramp_rev_row)
+
+        left_layout.addWidget(QLabel(tr("Elevation field name:")))
+        self.elev_field = QLineEdit("ELEV")
+        left_layout.addWidget(self.elev_field)
+
+        left_layout.addWidget(QLabel(tr("Speed field name:")))
+        self.speed_field = QLineEdit("speed")
+        left_layout.addWidget(self.speed_field)
+
+        left_layout.addWidget(QLabel(tr("Slope field name:")))
+        self.slope_field = QLineEdit("Slope")
+        left_layout.addWidget(self.slope_field)
 
 
 class ColorGPXDialog(QDialog):
@@ -245,6 +394,9 @@ class ColorGPXDialog(QDialog):
         cancel_btn.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
         ok_btn.clicked.connect(self._on_ok)
         cancel_btn.clicked.connect(self.reject)
+        style_primary_button(ok_btn)
+        for button in (ok_btn, cancel_btn):
+            button.setFixedHeight(32)
         btn_layout.addStretch()
         btn_layout.addWidget(ok_btn)
         btn_layout.addWidget(cancel_btn)
@@ -267,9 +419,10 @@ class ColorGPXDialog(QDialog):
         locale_val = QgsSettings().value("locale/userLocale", "")
         font_family = "Microsoft YaHei,sans-serif" if locale_val.startswith("zh") else "Segoe UI,sans-serif"
 
+        ui_colors = qgis_ui_tokens(self)
         info_html = (
-            f'<html><body style="font-family:{font_family};font-size:11px;color:#333;">'
-            f'<h3 style="margin:0 0 8px;color:#2c6b32;">{title}</h3>'
+            f'<html><body style="font-family:{font_family};font-size:11px;color:{ui_colors["text"]};">'
+            f'<h3 style="margin:0 0 8px;color:{ui_colors["accent"]};font-weight:600;">{title}</h3>'
             f'<p style="margin:0 0 10px;line-height:1.5;">{desc}</p>'
             f'<hr>'
             f'<h4 style="margin:8px 0 4px;">{steps_title}</h4>'
@@ -282,7 +435,7 @@ class ColorGPXDialog(QDialog):
             f'</ol>'
             f'<h4 style="margin:8px 0 4px;">{save_title}</h4>'
             f'<p style="margin:2px 0;line-height:1.5;">{save_desc}</p>'
-            f'<p style="margin:8px 0 0;color:#888;font-size:10px;">{author}</p>'
+            f'<p style="margin:8px 0 0;color:{ui_colors["muted"]};font-size:10px;">{author}</p>'
             f'</body></html>'
         )
         self.info_edit.setHtml(info_html)
@@ -380,26 +533,6 @@ class ColorGPXDialog(QDialog):
         painter.end()
         return QIcon(pixmap)
 
-    def _update_ramp_preview(self):
-        name = self.ramp_display.text()
-        if not name:
-            return
-        try:
-            ramp = QgsStyle().defaultStyle().colorRamp(name)
-            if ramp:
-                icon = self._make_ramp_preview(ramp, reverse=self.reverse_cb.isChecked())
-                self.ramp_preview.setPixmap(icon.pixmap(74, 22))
-        except Exception as e:
-            print(f"ColorGPX: Error updating color ramp preview: {e}")
-
-    def refresh_layers(self):
-        self.layer_combo.clear()
-        for layer in QgsProject.instance().mapLayers().values():
-            if layer.type() == QgsMapLayer.LayerType.VectorLayer:
-                self.layer_combo.addItem(layer.name(), layer)
-
-    def get_selected_layer(self):
-        return self.layer_combo.currentData()
 
     def _on_ok(self):
         """Run processing callback if set, otherwise close dialog."""
@@ -576,18 +709,21 @@ class ColorGPXHoverWidget(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
         
+        self._ui_colors = qgis_ui_tokens(self)
+        overlay_background = rgba_css(self._ui_colors["base"], 230)
+        overlay_border = rgba_css(self._ui_colors["muted"], 150)
         self.setStyleSheet("""
             QFrame#cardFrame {
-                background-color: rgba(30, 30, 30, 210);
-                border: 1px solid rgba(255, 255, 255, 60);
-                border-radius: 6px;
+                background-color: %s;
+                border: 1px solid %s;
+                border-radius: 8px;
             }
             QLabel {
-                color: white;
+                color: %s;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
                 font-size: 11px;
             }
-        """)
+        """ % (overlay_background, overlay_border, self._ui_colors["text"]))
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -617,9 +753,9 @@ class ColorGPXHoverWidget(QWidget):
         unit_slope = settings.value("ColorGPX/hover_unit_slope", "°", type=str)
         
         html = ["<div style='line-height: 1.2;'>"]
-        html.append(f"<div style='color: #4CAF50; font-weight: bold;'>{layer.name()}</div>")
-        html.append("<div style='border-top: 1px solid rgba(255, 255, 255, 60); margin-top: 3px; margin-bottom: 3px;'></div>")
-        html.append("<table style='color: white; font-family: sans-serif; font-size: 11px;'>")
+        html.append(f"<div style='color: {self._ui_colors['accent']}; font-weight: 600;'>{layer.name()}</div>")
+        html.append(f"<div style='border-top: 1px solid {self._ui_colors['muted']}; margin-top: 3px; margin-bottom: 3px;'></div>")
+        html.append(f"<table style='color: {self._ui_colors['text']}; font-family: sans-serif; font-size: 11px;'>")
         
         from .hover_utils import detect_field_and_unit, convert_value
         
@@ -762,16 +898,19 @@ class ColorGPXHoverSettingsDialog(QDialog):
         self.preview_card.setObjectName("previewCardFrame")
         self.preview_card.setMinimumWidth(180)
         self.preview_card.setMinimumHeight(100)
+        self._ui_colors = qgis_ui_tokens(self)
+        preview_background = rgba_css(self._ui_colors["base"], 230)
+        preview_border = rgba_css(self._ui_colors["muted"], 150)
         self.preview_card.setStyleSheet("""
             QFrame#previewCardFrame {
-                background-color: rgba(30, 30, 30, 210);
-                border: 1px solid rgba(255, 255, 255, 60);
-                border-radius: 6px;
+                background-color: %s;
+                border: 1px solid %s;
+                border-radius: 8px;
             }
             QLabel {
-                color: white;
+                color: %s;
             }
-        """)
+        """ % (preview_background, preview_border, self._ui_colors["text"]))
         
         card_layout = QVBoxLayout(self.preview_card)
         card_layout.setContentsMargins(10, 10, 10, 10)
@@ -805,6 +944,7 @@ class ColorGPXHoverSettingsDialog(QDialog):
         cancel_btn = QPushButton(tr("Cancel"))
         ok_btn.clicked.connect(self.save_settings)
         cancel_btn.clicked.connect(self.reject)
+        style_primary_button(ok_btn)
         buttons_layout.addStretch()
         buttons_layout.addWidget(ok_btn)
         buttons_layout.addWidget(cancel_btn)
@@ -834,9 +974,11 @@ class ColorGPXHoverSettingsDialog(QDialog):
         slope_str = "5.2 %" if unit_slope == "%" else "3.0 °"
         
         html = ["<div style='line-height: 1.2;'>"]
-        html.append(f"<div style='color: #4CAF50; font-weight: bold;'>ColorGPX Track</div>")
-        html.append("<div style='border-top: 1px solid rgba(255, 255, 255, 60); margin-top: 3px; margin-bottom: 3px;'></div>")
-        html.append("<table style='color: white; font-family: sans-serif; font-size: 11px;'>")
+        html.append(f"<div style='color: {self._ui_colors['accent']}; font-weight: 600;'>ColorGPX Track</div>")
+        html.append(f"<div style='border-top: 1px solid {self._ui_colors['muted']}; margin-top: 3px; margin-bottom: 3px;'></div>")
+        html.append(f"<table style='color: {self._ui_colors['text']}; font-family: sans-serif; font-size: 11px;'>")
+        
+        has_any = False
         
         has_any = False
         if show_time:
@@ -855,7 +997,7 @@ class ColorGPXHoverSettingsDialog(QDialog):
         html.append("</table></div>")
         
         if not has_any:
-            self.preview_label.setText(f"<div style='color: #888888; font-family: sans-serif; font-size: 11px; padding: 10px;'>{tr('No items selected')}</div>")
+            self.preview_label.setText(f"<div style='color: {self._ui_colors['muted']}; font-family: sans-serif; font-size: 11px; padding: 10px;'>{tr('No items selected')}</div>")
         else:
             self.preview_label.setText("".join(html))
         
@@ -886,7 +1028,7 @@ class ColorGPXHoverSettingsDialog(QDialog):
 
 
 class ColorGPXHoverLayerDialog(QDialog):
-    """启用悬浮追踪工具时弹出，让用户选择固定追踪的向量图层。"""
+    """Select a vector layer for hover tracking."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -910,9 +1052,8 @@ class ColorGPXHoverLayerDialog(QDialog):
         if not self._layers:
             layout.addWidget(QLabel(tr("No vector layers found in the project.")))
 
-        # ---- 操作提示 ----
         tip_label = QLabel(tr("💡 Tip:\nLock position info: Left-click.\nUnlock position: Right-click / click blank area."))
-        tip_label.setStyleSheet("color: #333333; font-size: 12px; padding: 5px 0;")
+        tip_label.setStyleSheet("font-size: 12px; padding: 5px 0;")
         tip_label.setWordWrap(True)
         layout.addWidget(tip_label)
 
@@ -922,6 +1063,7 @@ class ColorGPXHoverLayerDialog(QDialog):
         self.btn_start.setEnabled(bool(self._layers))
         btn_cancel = QPushButton(tr("Cancel"))
         self.btn_start.clicked.connect(self._on_start)
+        style_primary_button(self.btn_start)
         btn_cancel.clicked.connect(self.reject)
         btn_layout.addWidget(self.btn_start)
         btn_layout.addWidget(btn_cancel)
@@ -1004,7 +1146,7 @@ class ColorGPXHoverMapTool(QgsMapTool):
         features = list(layer.getFeatures(request))
 
         # ---- Transform cursor to Layer CRS for distance/snap calculations ----
-        # (We NEVER modify feature geometries – they stay in Layer CRS at all times.)
+        # (We NEVER modify feature geometries; they stay in Layer CRS at all times.)
         if transform_to_layer:
             try:
                 cursor_layer = transform_to_layer.transform(map_point)
@@ -1031,7 +1173,7 @@ class ColorGPXHoverMapTool(QgsMapTool):
         # All distance work in Layer CRS (cursor_layer is already in Layer CRS)
         geom_point_layer = QgsGeometry.fromPointXY(cursor_layer)
         for feat in features:
-            geom = feat.geometry()  # Layer CRS – read only, never modified
+            geom = feat.geometry()  # Layer CRS: read only, never modified
             if geom.isNull():
                 continue
             dist = geom.distance(geom_point_layer)
@@ -1092,8 +1234,7 @@ class ColorGPXHoverMapTool(QgsMapTool):
                 # ---- 更新或创建吸附定位图标 ----
                 if not self.marker:
                     self.marker = QgsVertexMarker(self.canvas())
-                    icon_type = QgsVertexMarker.IconType.ICON_CROSS if hasattr(QgsVertexMarker, 'IconType') else QgsVertexMarker.ICON_CROSS
-                    self.marker.setIconType(icon_type)  # 十字准星定位标
+                    self.marker.setIconType(QgsVertexMarker.IconType.ICON_CROSS)  # 十字准星定位标
                     self.marker.setIconSize(12)
                     self.marker.setPenWidth(2)
 
@@ -1165,8 +1306,7 @@ class ColorGPXHoverMapTool(QgsMapTool):
                 # 定位图标外观更新：转为绿色表示“锁定”
                 if not self.marker:
                     self.marker = QgsVertexMarker(self.canvas())
-                    icon_type = QgsVertexMarker.IconType.ICON_CROSS if hasattr(QgsVertexMarker, 'IconType') else QgsVertexMarker.ICON_CROSS
-                    self.marker.setIconType(icon_type)  # 十字准星定位标
+                    self.marker.setIconType(QgsVertexMarker.IconType.ICON_CROSS)  # 十字准星定位标
                     self.marker.setIconSize(12)
                     self.marker.setPenWidth(2)
                 self.marker.setColor(QColor(76, 175, 80))  # 绿色
@@ -1270,6 +1410,11 @@ class ColorGPXHoverMapTool(QgsMapTool):
 
             if local_pos.x() + w_w > canvas_size.width():
                 local_pos.setX(self.pinned_snap_pixel.x() - w_w - 8)
+            # 边界检查：防止悬浮窗超出 canvas 区域（全部使用 Canvas 局部坐标）
+            canvas_size = self.canvas().size()
+
+            if local_pos.x() + w_w > canvas_size.width():
+                local_pos.setX(self.pinned_snap_pixel.x() - w_w - 8)
             if local_pos.y() + w_h > canvas_size.height():
                 local_pos.setY(self.pinned_snap_pixel.y() - w_h - 8)
             if local_pos.x() < 0:
@@ -1286,6 +1431,7 @@ class ColorGPX:
     def __init__(self, iface):
         self.iface = iface
         self.action = None
+        self.batch_action = None
         self.toolbar = None
         self.hover_widget = None
         self.hover_action = None
@@ -1329,6 +1475,12 @@ class ColorGPX:
         self.action = QAction(QIcon(icon_path), tr("GPX → ColorGPX"), self.iface.mainWindow())
         self.action.triggered.connect(self.run)
 
+        batch_icon_path = os.path.join(os.path.dirname(__file__), "icons_Component", "Batch_ColorGPX.svg")
+        self.batch_action = QAction(
+            QIcon(batch_icon_path), tr("Batch Generate ColorGPX"), self.iface.mainWindow())
+        self.batch_action.setToolTip(tr("Batch Generate ColorGPX"))
+        self.batch_action.triggered.connect(self.run_batch)
+
         hover_icon_path = os.path.join(os.path.dirname(__file__), "icons_Component", "ColorGPX_Mouse_Prompt.svg")
         self.hover_action = QAction(QIcon(hover_icon_path), tr("Hover Track Info"), self.iface.mainWindow())
         self.hover_action.setCheckable(True)
@@ -1339,11 +1491,13 @@ class ColorGPX:
         self.hover_settings_action.triggered.connect(self.show_hover_settings)
 
         self.iface.addPluginToVectorMenu("ColorGPX", self.action)
+        self.iface.addPluginToVectorMenu("ColorGPX", self.batch_action)
 
         # 创建独立的可移动工具栏
         self.toolbar = self.iface.addToolBar(tr("ColorGPX"))
         self.toolbar.setObjectName("ColorGPX")
         self.toolbar.addAction(self.action)
+        self.toolbar.addAction(self.batch_action)
         self.toolbar.addSeparator()
         self.toolbar.addAction(self.hover_action)
         self.toolbar.addAction(self.hover_settings_action)
@@ -1370,6 +1524,7 @@ class ColorGPX:
         # Uninstall translator to clean up memory
         QCoreApplication.removeTranslator(self.translator)
         self.iface.removePluginVectorMenu("ColorGPX", self.action)
+        self.iface.removePluginVectorMenu("ColorGPX", self.batch_action)
         if self.toolbar:
             self.toolbar.clear()
             del self.toolbar
@@ -1418,6 +1573,43 @@ class ColorGPX:
         dialog.exec()
 
     def run(self):
+        """Open the focused single-track generator."""
+        self._run_legacy()
+
+    def run_batch(self):
+        """Open the independent batch generation panel."""
+        def process_task(task, output_name, render_type, render_mode,
+                         color_ramp_name, reverse_ramp, simulate_speed,
+                         elev_unit, speed_unit, slope_unit, progress_bar=None,
+                         elev_name="ELEV", speed_name="speed", slope_name="Slope"):
+            return self.create_colored_gpx(
+                task.layer,
+                output_name,
+                elev_name,
+                speed_name,
+                slope_name,
+                render_type,
+                render_mode,
+                color_ramp_name,
+                "",
+                progress_bar,
+                reverse_ramp,
+                simulate_speed=simulate_speed,
+                elev_unit=elev_unit,
+                speed_unit=speed_unit,
+                slope_unit=slope_unit,
+                notify=False,
+                add_to_project=False,
+            )
+
+        dialog = BatchGenerationDialog(
+            self.iface,
+            process_task,
+            parent=self.iface.mainWindow(),
+        )
+        dialog.exec()
+
+    def _run_legacy(self):
         dialog = ColorGPXDialog(self.iface.mainWindow())
 
         def on_ok():
@@ -1430,24 +1622,26 @@ class ColorGPX:
             speed_name = dialog.speed_field.text().strip() or "speed"
             slope_name = dialog.slope_field.text().strip() or "Slope"
             output_name = dialog.output_name.text().strip() or "ColorGPX"
+
             if dialog.rb_speed.isChecked():
                 render_type = "speed"
             elif dialog.rb_elevation.isChecked():
                 render_type = "elevation"
             else:
                 render_type = "slope"
+
             if dialog.rb_point.isChecked():
                 render_mode = "point"
             elif dialog.rb_gradient.isChecked():
                 render_mode = "gradient_line"
             else:
                 render_mode = "line"
+
             color_ramp_name = dialog.ramp_display.text()
             output_path = dialog.output_path.text().strip()
             reverse_ramp = dialog.reverse_cb.isChecked()
             has_speed = dialog.has_speed
 
-            # Fetch selected units
             elev_unit = dialog.elev_unit_combo.currentText()
             slope_unit = dialog.slope_unit_combo.currentText()
             speed_unit = dialog.speed_unit_combo.currentText()
@@ -1464,7 +1658,8 @@ class ColorGPX:
     def create_colored_gpx(self, layer, output_name, elev_name, speed_name, slope_name,
                            render_type, render_mode="point", color_ramp_name="", output_path="",
                            progress_bar=None, reverse_ramp=False, simulate_speed=False,
-                           elev_unit="m", speed_unit="m/s", slope_unit="°"):
+                           elev_unit="m", speed_unit="m/s", slope_unit="°", notify=True,
+                           add_to_project=True):
         source = layer.source()
         gpx_file = source.split("|")[0]
 
@@ -1497,7 +1692,6 @@ class ColorGPX:
                                 _update_progress, simulate_speed, elev_unit, speed_unit, slope_unit)
             apply_renderer = apply_line_renderer
         out.setName(output_name)
-        QgsProject.instance().addMapLayer(out)
 
         if render_type == "speed":
             field_to_render = speed_field_name
@@ -1509,6 +1703,11 @@ class ColorGPX:
             apply_renderer(out, field_to_render, color_ramp_name, reverse_ramp, render_type)
         else:
             apply_renderer(out, field_to_render, color_ramp_name, reverse_ramp)
+
+        # Add only after processing and renderer application have succeeded so
+        # failures do not leave partially configured layers in the project.
+        if add_to_project:
+            QgsProject.instance().addMapLayer(out)
 
         # ---- save to file ---- #
         if output_path:
@@ -1526,9 +1725,10 @@ class ColorGPX:
                     error_code, error_msg = result, ""
 
                 if error_code == QgsVectorFileWriter.WriterError.NoError:
-                    self.iface.messageBar().pushSuccess(
-                        tr("Saved"), f"{output_path}"
-                    )
+                    if notify:
+                        self.iface.messageBar().pushSuccess(
+                            tr("Saved"), f"{output_path}"
+                        )
                 else:
                     self.iface.messageBar().pushCritical(
                         tr("Save failed"), error_msg or str(error_code)
@@ -1539,4 +1739,6 @@ class ColorGPX:
         # Localize render mode label dynamically
         mode_label_tr = tr("point") if render_mode == "point" else (tr("gradient_line") if render_mode == "gradient_line" else tr("line"))
         msg = tr("{} created ({} mode)").format(output_name, mode_label_tr)
-        self.iface.messageBar().pushSuccess(tr("Success"), msg)
+        if notify:
+            self.iface.messageBar().pushSuccess(tr("Success"), msg)
+        return out

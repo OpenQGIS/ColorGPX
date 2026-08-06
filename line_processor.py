@@ -1,4 +1,4 @@
-from qgis.core import QgsVectorLayer, QgsField, QgsFeature, QgsPoint, QgsGeometry, QgsCoordinateReferenceSystem
+from qgis.core import QgsVectorLayer, QgsField, QgsFeature, QgsPoint, QgsGeometry, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsPointXY, QgsProject
 from qgis.PyQt.QtCore import QVariant, QDateTime, Qt
 try:
     from qgis.PyQt.QtCore import QMetaType
@@ -23,11 +23,7 @@ def parse_iso_time_to_qdatetime(time_str):
     time_str = time_str.strip()
     if " " in time_str:
         time_str = time_str.replace(" ", "T")
-    # Compatibility support for PyQt5 and PyQt6 enums
-    if hasattr(Qt, 'DateFormat') and hasattr(Qt.DateFormat, 'ISODate'):
-        dt = QDateTime.fromString(time_str, Qt.DateFormat.ISODate)
-    else:
-        dt = QDateTime.fromString(time_str, Qt.ISODate)
+    dt = QDateTime.fromString(time_str, Qt.DateFormat.ISODate)
     if dt.isValid():
         return dt
     return QDateTime()
@@ -137,8 +133,19 @@ def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Sl
             seg_idx += 1
 
     # ---- build the LineStringZ memory layer ---- #
-    crs = QgsCoordinateReferenceSystem("EPSG:4326")
-    out = QgsVectorLayer(f"LineStringZM?crs={crs.authid()}", "colorGPX_lines", "memory")
+    # Determine local UTM zone based on track coordinates center
+    lons = [p["lon"] for p in points]
+    lats = [p["lat"] for p in points]
+    center_lon = sum(lons) / len(lons) if lons else 0.0
+    center_lat = sum(lats) / len(lats) if lats else 0.0
+    center_lon = max(-180.0, min(180.0, center_lon))
+    zone = int((center_lon + 180.0) / 6.0) + 1
+    zone = max(1, min(60, zone))
+    epsg = 32600 + zone if center_lat >= 0 else 32700 + zone
+    utm_crs = QgsCoordinateReferenceSystem(f"EPSG:{epsg}")
+    
+    transform = QgsCoordinateTransform(QgsCoordinateReferenceSystem("EPSG:4326"), utm_crs, QgsProject.instance())
+    out = QgsVectorLayer(f"LineStringZ?crs={utm_crs.authid()}", "colorGPX_lines", "memory")
     provider = out.dataProvider()
     provider.addAttributes([
         QgsField("ID", _Int, "integer"),
@@ -269,8 +276,10 @@ def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Sl
             segments = [(p1, p2)]
             # Create features for each sub-segment
             for d1, d2 in segments:
-                g1 = QgsPoint(d1["lon"], d1["lat"], ele1_conv, speed1_conv)
-                g2 = QgsPoint(d2["lon"], d2["lat"], ele2_conv, speed2_conv)
+                pt1_proj = transform.transform(QgsPointXY(d1["lon"], d1["lat"]))
+                pt2_proj = transform.transform(QgsPointXY(d2["lon"], d2["lat"]))
+                g1 = QgsPoint(pt1_proj.x(), pt1_proj.y(), ele1_conv)
+                g2 = QgsPoint(pt2_proj.x(), pt2_proj.y(), ele2_conv)
                 line = QgsGeometry.fromPolyline([g1, g2])
                 f = QgsFeature(out.fields())
                 f.setGeometry(line)
@@ -287,4 +296,5 @@ def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Sl
                     progress_callback(done, total_lines)
 
     provider.addFeatures(feats)
+    out.updateExtents()
     return out
