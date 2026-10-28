@@ -2,6 +2,7 @@
 
 <p align="left">
   <img src="https://img.shields.io/badge/status-feature--complete-brightgreen?style=flat&logo=checkmarx&logoColor=white" alt="Status">
+  <img src="https://img.shields.io/badge/QGIS%20Version-3.40%2B%20(Recommended)-589632?style=flat&logo=qgis&logoColor=white" alt="QGIS Version: 3.40+ (Recommended)">
 </p>
 
 > 💡 **项目状态与版本说明 (Project Status & QGIS Version)**：  
