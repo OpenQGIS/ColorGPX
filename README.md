@@ -2,11 +2,6 @@
 
 <p align="left">
   <img src="https://img.shields.io/badge/status-feature--complete-brightgreen?style=flat&logo=checkmarx&logoColor=white" alt="Status">
-  <a href="https://plugins.qgis.org/plugins/ColorGPX/"><img src="https://img.shields.io/qgis/plugin/v/ColorGPX?style=flat&label=qgis%20plugin&logo=qgis&logoColor=white&color=589632" alt="QGIS Plugin"></a>
-  <a href="https://plugins.qgis.org/plugins/ColorGPX/"><img src="https://img.shields.io/qgis/plugin/dt/ColorGPX?style=flat&label=downloads&color=blue" alt="Downloads"></a>
-  <img src="https://img.shields.io/badge/QGIS%20Version-3.40%2B%20(Recommended)-589632?style=flat&logo=qgis&logoColor=white" alt="QGIS Version">
-  <a href="https://github.com/OpenQGIS/ColorGPX/releases"><img src="https://img.shields.io/github/v/release/OpenQGIS/ColorGPX?style=flat&color=007ec6&label=release" alt="Release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/OpenQGIS/ColorGPX?style=flat&color=blue" alt="License"></a>
 </p>
 
 > 💡 **项目状态与版本说明 (Project Status & QGIS Version)**：  
