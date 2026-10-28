@@ -4,12 +4,14 @@
   <img src="https://img.shields.io/badge/status-feature--complete-brightgreen?style=flat&logo=checkmarx&logoColor=white" alt="Status">
   <a href="https://plugins.qgis.org/plugins/ColorGPX/"><img src="https://img.shields.io/qgis/plugin/v/ColorGPX?style=flat&label=qgis%20plugin&logo=qgis&logoColor=white&color=589632" alt="QGIS Plugin"></a>
   <a href="https://plugins.qgis.org/plugins/ColorGPX/"><img src="https://img.shields.io/qgis/plugin/dt/ColorGPX?style=flat&label=downloads&color=blue" alt="Downloads"></a>
+  <img src="https://img.shields.io/badge/QGIS%20Version-3.40%2B%20(Recommended)-589632?style=flat&logo=qgis&logoColor=white" alt="QGIS Version">
   <a href="https://github.com/OpenQGIS/ColorGPX/releases"><img src="https://img.shields.io/github/v/release/OpenQGIS/ColorGPX?style=flat&color=007ec6&label=release" alt="Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/OpenQGIS/ColorGPX?style=flat&color=blue" alt="License"></a>
 </p>
 
-> 💡 **项目状态说明 (Project Status)**：  
-> 本插件针对 GPX 航迹的多维度（高程、速度、坡度）色彩渲染映射算法已**开发完备并经过大量真实数据验证（Feature-Complete）**。当前处于长期稳定维护状态，保障各版本 QGIS 的即插即用稳定性。
+> 💡 **项目状态与版本说明 (Project Status & QGIS Version)**：  
+> - **项目状态**：本插件针对 GPX 航迹的多维度（高程、速度、坡度）色彩渲染映射算法已**开发完备并经过大量真实数据验证（Feature-Complete）**，处于长期稳定维护状态。  
+> - **最佳版本推荐**：基础点模式与分段线模式兼容 **QGIS 3.10+**；若要启用最核心的**沿轨迹真实平滑渐变线渲染（Gradient Line）**，推荐使用 **QGIS 3.40+**（依赖原生插值线符号层 `QgsInterpolatedLineSymbolLayer`）。
 
 > 将 GPX 轨迹按速度、高程或坡度渲染为渐变色图层的 QGIS 插件
 
