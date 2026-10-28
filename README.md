@@ -1,5 +1,16 @@
 # ColorGPX
 
+<p align="left">
+  <img src="https://img.shields.io/badge/status-feature--complete-brightgreen?style=flat&logo=checkmarx&logoColor=white" alt="Status">
+  <a href="https://plugins.qgis.org/plugins/ColorGPX/"><img src="https://img.shields.io/qgis/plugin/v/ColorGPX?style=flat&label=qgis%20plugin&logo=qgis&logoColor=white&color=589632" alt="QGIS Plugin"></a>
+  <a href="https://plugins.qgis.org/plugins/ColorGPX/"><img src="https://img.shields.io/qgis/plugin/dt/ColorGPX?style=flat&label=downloads&color=blue" alt="Downloads"></a>
+  <a href="https://github.com/OpenQGIS/ColorGPX/releases"><img src="https://img.shields.io/github/v/release/OpenQGIS/ColorGPX?style=flat&color=007ec6&label=release" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/OpenQGIS/ColorGPX?style=flat&color=blue" alt="License"></a>
+</p>
+
+> 💡 **项目状态说明 (Project Status)**：  
+> 本插件针对 GPX 航迹的多维度（高程、速度、坡度）色彩渲染映射算法已**开发完备并经过大量真实数据验证（Feature-Complete）**。当前处于长期稳定维护状态，保障各版本 QGIS 的即插即用稳定性。
+
 > 将 GPX 轨迹按速度、高程或坡度渲染为渐变色图层的 QGIS 插件
 
 **当前版本 / Current version：3.6.0**
