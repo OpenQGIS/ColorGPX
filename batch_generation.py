@@ -7,10 +7,144 @@ from datetime import datetime
 import os
 import re
 
-from qgis.PyQt.QtCore import Qt, QUrl, QSize, QCoreApplication
+from qgis.PyQt.QtCore import Qt, QUrl, QSize, QCoreApplication, QLocale
+from qgis.core import QgsSettings
+
+_zh_translations = {
+    '1. This GPX does not contain speed information; current speed is simulated speed.': '1. 此 GPX 文件没有内置速度信息，当前速度为根据时间和经纬度计算出的模拟速度。',
+    '2. This GPX does not contain elevation data; Elevation and Slope rendering are unavailable.': '2. 此 GPX 文件没有高程数据，高程与坡度渲染不可用。',
+    '2. We recommend using [2bulu, Guru Maps, OsmAnd, Organic] to record GPS speed.': '2. 建议使用 [两步路、Guru Maps、OsmAnd、Organic] 等专业软件记录含速度的 GPS 轨迹。',
+    '3. We recommend using [2bulu, Guru Maps, OsmAnd, Organic] to record GPS speed and elevation.': '3. 建议使用 [两步路、Guru Maps、OsmAnd、Organic] 等专业软件记录含速度与高度的 GPS 轨迹。',
+    'Add': '添加',
+    'Author: OpenQGIS': '作者：OpenQGIS',
+    'Auto-append index': '重名时自动追加序号',
+    'Available Layers': '项目可用矢量图层',
+    'Batch Generate ColorGPX': '批量生成彩色轨迹',
+    'Browse…': '浏览…',
+    'Cancel': '取消',
+    'Cancel Running': '取消运行',
+    'Choose a color ramp': '选择色彩渐变色带',
+    'Choose render field (Speed / Elevation / Slope°)': '选择渲染属性字段 (速度 / 海拔 / 坡度°)',
+    'Choose render mode (Point / Line / Gradient Line)': '选择图层渲染模式 (点 / 线 / 渐变线)',
+    'Click "Run"': '点击“运行”开始处理',
+    'Close': '关闭',
+    'Collision policy': '文件名冲突策略',
+    'Color ramp': '渲染色带',
+    'Color ramp:': '色带:',
+    'ColorGPX': 'ColorGPX',
+    'ColorGPX - Settings': 'ColorGPX - 轨迹渲染设置',
+    'ColorGPX Batch Report': 'ColorGPX 批处理结果报告',
+    'ColorGPX Hover Settings': 'ColorGPX 悬浮提示设置',
+    'Continue executable tasks, skip incompatible tasks': '忽略不兼容任务并继续处理其他有效任务',
+    'Current speed is simulated speed. Click for more details.': '当前速度为计算模拟速度。点击查看详情。',
+    'Current speed is simulated speed. Elevation and Slope are unavailable.': '当前速度为计算模拟速度。高程与坡度渲染不可用。',
+    'Description': '说明',
+    'Elevation': '高程',
+    'Elevation and Slope rendering are unavailable (no elevation data).': '高程和坡度渲染不可用（无高程数据）。',
+    'Elevation field name:': '高程字段名:',
+    'Error': '错误',
+    'Exception policy': '异常处理策略',
+    'Export Batch Report': '导出批处理报告',
+    'Export CSV Report': '导出 CSV 报告',
+    'Field Source': '字段来源',
+    'Field name': '字段名',
+    'File format': '文件格式',
+    'GPX → ColorGPX': 'GPX → ColorGPX',
+    'GeoJSON (*.geojson);;GPKG (*.gpkg);;Shapefile (*.shp);;All files (*)': 'GeoJSON (*.geojson);;GPKG (*.gpkg);;Shapefile (*.shp);;所有文件 (*)',
+    'Gradient Line': '渐变线',
+    'Hover Settings': '悬浮窗口设置',
+    'Hover Track Info': '悬浮轨迹查看工具',
+    'How to use': '使用说明',
+    'Incompatible tasks exist in strict mode, please remove or uncheck them first.': '严格模式下存在无法运行的不兼容任务，请先移除或取消勾选。',
+    'Information': '提示信息',
+    'Input layer (GPX track_points):': '输入图层 (GPX track_points):',
+    'Layer Data Unavailable': '图层数据不可用',
+    'Line': '线',
+    'Naming template': '命名模板',
+    'No available GPX track_points layer found in current project.': '当前工程中未找到可用的 GPX track_points 图层。',
+    'No items selected': '未选择任何显示字段',
+    'No processing results': '没有可处理的图层结果',
+    'No runnable tasks match current configuration.': '当前配置下没有可执行的任务。',
+    'No tasks added yet': '尚未添加任何处理任务',
+    'No tasks need to be run under current exception policy.': '当前异常策略下无需运行任何任务。',
+    'No vector layers found in the project.': '当前工程中未找到任何矢量图层。',
+    'OK': '确定',
+    'Open Output Location': '打开输出文件夹',
+    'Optionally save to GeoJSON, GPKG or Shapefile.': '可选择保存为 GeoJSON、GPKG 或 Shapefile 文件。',
+    'Output': '输出设置',
+    'Output & Naming': '输出文件与命名策略',
+    'Output layer:': '输出图层名称:',
+    'Output location': '输出目录位置',
+    'Output mode': '输出保存模式',
+    'Overwrite existing results': '直接覆盖同名文件',
+    'Please select a GPX track_points layer': '请先选择一个 GPX track_points 图层',
+    'Please select a GeoPackage file in a valid directory.': '请在有效的目录中选择或指定 GeoPackage 文件路径。',
+    'Please select a track_points layer from GPX data!': '请选择 GPX 数据生成的 track_points 图层！',
+    'Please select a valid output folder.': '请选择有效的输出文件夹。',
+    'Point': '点',
+    'Render GPX tracks as gradient-colored layers by speed (m/s), elevation (m) or slope (°). Recommended apps: 2bulu, Guru Maps, OsmAnd, Organic.': '将 GPX 轨迹按速度 (m/s)、高程 (m) 或坡度 (°) 渲染为彩色渐变图层。推荐搭配两步路、Guru Maps、OsmAnd 等软件使用。',
+    'Render field': '渲染属性字段',
+    'Render field:': '渲染属性字段:',
+    'Render mode': '渲染模式',
+    'Render mode:': '渲染模式:',
+    'Report save failed:': '报告导出失败：',
+    'Retry Failed': '重试失败任务',
+    'Reverse ramp': '反转色带',
+    'Run': '运行',
+    'Run tasks with complete fields only': '仅运行具备完整属性字段的任务',
+    'Save': '保存设置',
+    'Save failed': '保存失败',
+    'Save layer': '保存图层',
+    'Save to file...': '保存到文件...',
+    'Saved': '保存成功',
+    'Select Color Ramp': '选择色带',
+    'Select Project Layer': '选择工程图层',
+    'Select Tracking Layer': '选择追踪图层',
+    'Select a GPX track_points layer': '选择 GPX track_points 图层',
+    'Select...': '选择...',
+    'Separate files': '输出为独立文件',
+    'Settings Preview': '实时渲染效果预览',
+    'Show Items': '显示项目',
+    'Single GeoPackage': '合并保存至单个 GeoPackage',
+    'Skip existing results': '跳过重名文件',
+    'Slope': '坡度',
+    'Slope field name:': '坡度字段名:',
+    'Source': '任务来源',
+    'Speed': '速度',
+    'Speed Source': '速度类型',
+    'Speed field name:': '速度字段名:',
+    'Start Generation': '开始生成',
+    'Start Tracking': '开始追踪',
+    'Status': '任务状态',
+    'Strict mode: Stop if incompatible tasks exist': '严格模式：若存在不兼容任务则停止运行',
+    'Success': '成功',
+    'Temporary layer': '仅创建临时图层',
+    'This layer has no elevation or time data. All render fields are unavailable.': '该图层缺少高程和时间数据，所有渲染字段均不可用。',
+    'This layer has no time data. Speed rendering is unavailable.': '该图层缺少时间数据，速度渲染不可用。',
+    'Time': '时间',
+    'To avoid exhausting resources, a maximum of': '为避免系统资源耗尽，单次最多可添加',
+    'Unable to read folder:': '无法读取目标文件夹：',
+    'Unit': '显示单位',
+    'Units': '显示单位',
+    'View Report': '查看批处理报告',
+    'files can be added at a time.': '个文件。',
+    'gradient_line': '渐变线',
+    'line': '线',
+    'point': '点',
+    '{} created ({} mode)': '已创建 {} ({})',
+    '💡 Tip:\nLock position info: Left-click.\nUnlock position: Right-click / click blank area.': '💡 操作提示：\n锁定当前位置参数：鼠标左键点击轨迹线。\n解除定位锁定：鼠标右键点击 / 点击空白区域。',
+}
 
 def tr(text, disambiguation=None):
-    return QCoreApplication.translate('ColorGPX', text, disambiguation)
+    res = QCoreApplication.translate('ColorGPX', text, disambiguation)
+    if res == text:
+        res = QCoreApplication.translate('BatchGenerationDialog', text, disambiguation)
+    if res == text:
+        locale_name = QgsSettings().value("locale/userLocale", QLocale.system().name())
+        if locale_name and str(locale_name).lower().startswith("zh"):
+            if text in _zh_translations:
+                return _zh_translations[text]
+    return res
 from qgis.PyQt.QtGui import QBrush, QColor, QDesktopServices, QIcon, QPainter, QPixmap
 from qgis.PyQt.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QFileDialog, QGridLayout,
@@ -20,7 +154,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 from qgis.core import (
-    Qgis, QgsMapLayer, QgsProject, QgsStyle, QgsVectorFileWriter,
+    QgsMapLayer, QgsProject, QgsStyle, QgsVectorFileWriter,
     QgsVectorLayer,
 )
 from .ui_style import style_primary_button
@@ -96,7 +230,7 @@ class BatchTask:
     @property
     def speed_source(self):
         if self.has_speed:
-            return "原始/扩展"
+            return "原生"
         if self.has_time:
             return "模拟"
         return "缺失"
@@ -291,53 +425,6 @@ class BatchResultDialog(QDialog):
         if layer and layer.isValid():
             self.iface.setActiveLayer(layer)
             self.iface.zoomToActiveLayer()
-        buttons.addWidget(export_btn)
-        buttons.addWidget(folder_btn)
-        buttons.addWidget(close_btn)
-        layout.addLayout(buttons)
-
-    def _export_csv(self):
-        path, _ = QFileDialog.getSaveFileName(self, tr("Export Batch Report"), "ColorGPX_batch_report.csv", "CSV (*.csv)")
-        if not path:
-            return
-        if not path.lower().endswith(".csv"):
-            path += ".csv"
-        try:
-            with open(path, "w", newline="", encoding="utf-8-sig") as stream:
-                writer = csv.writer(stream)
-                writer.writerow([tr("Source"), tr("Status"), tr("Output"), tr("Time"), tr("Elevation"), tr("Speed Source"), tr("Description")])
-                for task in self.tasks:
-                    values = [
-                        task.name, task.status, task.output,
-                        "有" if task.has_time else "无",
-                        "有" if task.has_elevation else "无",
-                        task.speed_source, task.detail,
-                    ]
-                    # Prevent spreadsheet software from interpreting untrusted
-                    # filenames or error messages as formulas.
-                    writer.writerow([
-                        "'" + str(value) if str(value).startswith(("=", "+", "-", "@")) else value
-                        for value in values
-                    ])
-        except OSError as exc:
-            QMessageBox.warning(self, "ColorGPX", f"{tr('Report save failed:')} {exc}")
-
-    def _open_output_folder(self):
-        paths = [task.output for task in self.tasks if task.output]
-        if not paths:
-            return
-        target = paths[0]
-        folder = target if os.path.isdir(target) else os.path.dirname(target)
-        if folder and os.path.isdir(folder):
-            QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
-
-    def _locate_result_layer(self, row, _column):
-        if not self.iface or not (0 <= row < len(self.tasks)):
-            return
-        layer = self.tasks[row].result_layer
-        if layer and layer.isValid():
-            self.iface.setActiveLayer(layer)
-            self.iface.zoomToActiveLayer()
 
 
 class BatchGenerationDialog(QDialog):
@@ -351,6 +438,14 @@ class BatchGenerationDialog(QDialog):
         self.task_keys = set()
         self.cancel_requested = False
         self.result_group = None
+
+        icons_dir = os.path.join(os.path.dirname(__file__), "icons_Component")
+        self._icon_yes = QIcon(os.path.join(icons_dir, "Yes.svg"))
+        self._icon_no = QIcon(os.path.join(icons_dir, "NO.svg"))
+        self._icon_orig_data = QIcon(os.path.join(icons_dir, "Original_Data.svg"))
+        self._icon_sim_data = QIcon(os.path.join(icons_dir, "Simulated_Data.svg"))
+        self._icon_miss_data = QIcon(os.path.join(icons_dir, "Missing_Data.svg"))
+
         self.setWindowTitle("ColorGPX - 单文件与批量生成")
         self.setMinimumWidth(550)
         self.resize(550, 680)
@@ -373,156 +468,7 @@ class BatchGenerationDialog(QDialog):
         layout.addLayout(source_row)
 
         self.task_table = QTableWidget(0, 9)
-        self.task_table.setHorizontalHeaderLabels(
-            ["启用", "状态", "名称", "来源", "轨迹点", "时间", "高程", "速度", "说明"]
-        )
-        self.task_table.itemChanged.connect(self._on_item_changed)
-        layout.addWidget(self.task_table, 1)
-
-        settings_scroll = QScrollArea(self)
-        settings_scroll.setWidgetResizable(True)
-        settings_scroll.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        settings_scroll.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        settings_scroll.setMinimumHeight(180)
-        settings_scroll.setMaximumHeight(280)
-        settings_container = QWidget(settings_scroll)
-        settings_layout = QVBoxLayout(settings_container)
-        settings_layout.setContentsMargins(6, 6, 6, 6)
-        settings_layout.setSpacing(6)
-
-        settings = CollapsibleSection("全局生成设置")
-        grid = QGridLayout()
-        self.mode_group = QButtonGroup(self)
-        mode_row = QHBoxLayout()
-        for button_id, (label, value) in enumerate((
-            ("点", "point"), ("线", "line"), ("渐变线", "gradient_line"))):
-            button = QRadioButton(label)
-            button.setProperty("value", value)
-            self.mode_group.addButton(button, button_id)
-            mode_row.addWidget(button)
-            if button_id == 0:
-                button.setChecked(True)
-        mode_row.addStretch()
-        self.metric_group = QButtonGroup(self)
-        metric_row = QHBoxLayout()
-        for button_id, (label, value) in enumerate((
-            ("高程", "elevation"), ("坡度", "slope"), ("速度", "speed"))):
-            button = QRadioButton(label)
-            button.setProperty("value", value)
-            self.metric_group.addButton(button, button_id)
-            metric_row.addWidget(button)
-            if value == "speed":
-                button.setChecked(True)
-            button.clicked.connect(self._refresh_task_states)
-        metric_row.addStretch()
-        self.ramp_preview = QLabel()
-        self.ramp_preview.setFixedSize(96, 22)
-        self.ramp_display = QLineEdit()
-        self.ramp_display.setReadOnly(True)
-        ramp_names = QgsStyle().defaultStyle().colorRampNames()
-        if ramp_names:
-            self.ramp_display.setText(ramp_names[0])
-        self.ramp_button = QPushButton("选择…")
-        self.ramp_button.clicked.connect(self._pick_color_ramp)
-        self.reverse_check = QCheckBox("反转色带")
-        self.reverse_check.toggled.connect(self._update_ramp_preview)
-        self.elev_unit = QComboBox(); self.elev_unit.addItems(["m", "ft"])
-        self.speed_unit = QComboBox(); self.speed_unit.addItems(["m/s", "km/h", "mph"])
-        self.slope_unit = QComboBox(); self.slope_unit.addItems(["°", "%"])
-        self.elev_field = QLineEdit("ELEV")
-        self.speed_field = QLineEdit("speed")
-        self.slope_field = QLineEdit("Slope")
-        self.batch_policy = QComboBox()
-        self.batch_policy.addItem(tr("Continue executable tasks, skip incompatible tasks"), "continue")
-        self.batch_policy.addItem(tr("Strict mode: Stop if incompatible tasks exist"), "strict")
-        self.batch_policy.addItem(tr("Run tasks with complete fields only"), "complete_only")
-        grid.addWidget(QLabel(tr("Render mode")), 0, 0); grid.addLayout(mode_row, 0, 1, 1, 3)
-        grid.addWidget(QLabel(tr("Render field")), 1, 0); grid.addLayout(metric_row, 1, 1, 1, 3)
-        ramp_row = QHBoxLayout()
-        ramp_row.addWidget(self.ramp_preview)
-        ramp_row.addWidget(self.ramp_display, 1)
-        ramp_row.addWidget(self.ramp_button)
-        ramp_row.addWidget(self.reverse_check)
-        grid.addWidget(QLabel(tr("Color ramp")), 2, 0); grid.addLayout(ramp_row, 2, 1, 1, 3)
-        units_grid = QGridLayout()
-        units_grid.setContentsMargins(0, 0, 0, 0)
-        units_grid.setHorizontalSpacing(8)
-        fields_grid = QGridLayout()
-        fields_grid.setContentsMargins(0, 0, 0, 0)
-        fields_grid.setHorizontalSpacing(8)
-        for column, (label, unit_widget, field_widget) in enumerate((
-            (tr("Elevation"), self.elev_unit, self.elev_field),
-            (tr("Slope"), self.slope_unit, self.slope_field),
-            (tr("Speed"), self.speed_unit, self.speed_field),
-        )):
-            units_grid.addWidget(QLabel(label), 0, column)
-            units_grid.addWidget(unit_widget, 1, column)
-            fields_grid.addWidget(QLabel(label), 0, column)
-            fields_grid.addWidget(field_widget, 1, column)
-            units_grid.setColumnStretch(column, 1)
-            fields_grid.setColumnStretch(column, 1)
-        grid.addWidget(QLabel(tr("Unit")), 3, 0)
-        grid.addLayout(units_grid, 3, 1, 1, 3)
-        grid.addWidget(QLabel(tr("Field name")), 4, 0)
-        grid.addLayout(fields_grid, 4, 1, 1, 3)
-        grid.addWidget(QLabel(tr("Exception policy")), 5, 0)
-        grid.addWidget(self.batch_policy, 5, 1, 1, 3)
-        settings.setContentLayout(grid)
-        settings_layout.addWidget(settings)
-
-        output = CollapsibleSection(tr("Output & Naming"))
-        output_grid = QGridLayout()
-        self.output_mode_group = QButtonGroup(self)
-        output_mode_row = QHBoxLayout()
-        for button_id, (label, value) in enumerate((
-            (tr("Temporary layer"), "temporary"),
-            (tr("Separate files"), "separate"),
-            (tr("Single GeoPackage"), "single_gpkg"))):
-            button = QRadioButton(label)
-            button.setProperty("value", value)
-            self.output_mode_group.addButton(button, button_id)
-            output_mode_row.addWidget(button)
-            if button_id == 0:
-                button.setChecked(True)
-            button.clicked.connect(self._update_output_ui)
-        output_mode_row.addStretch()
-        self.output_path = QLineEdit()
-        self.output_browse = QPushButton(tr("Browse…"))
-        self.output_browse.clicked.connect(self._browse_output)
-        self.format_combo = QComboBox()
-        self.format_combo.addItem("GeoPackage (*.gpkg)", (".gpkg", "GPKG"))
-        self.format_combo.addItem("GeoJSON (*.geojson)", (".geojson", "GeoJSON"))
-        self.format_combo.addItem("Shapefile (*.shp)", (".shp", "ESRI Shapefile"))
-        self.name_template = QLineEdit("{source}_{metric}_{mode}")
-        self.collision_combo = QComboBox()
-        self.collision_combo.addItem(tr("Auto-append index"), "suffix")
-        self.collision_combo.addItem(tr("Skip existing results"), "skip")
-        self.collision_combo.addItem(tr("Overwrite existing results"), "overwrite")
-        output_grid.addWidget(QLabel(tr("Output mode")), 0, 0); output_grid.addLayout(output_mode_row, 0, 1, 1, 3)
-        output_grid.addWidget(QLabel(tr("Output location")), 1, 0); output_grid.addWidget(self.output_path, 1, 1, 1, 2)
-        output_grid.addWidget(self.output_browse, 1, 3)
-        output_grid.addWidget(QLabel(tr("File format")), 2, 0); output_grid.addWidget(self.format_combo, 2, 1)
-        self._build_ui()
-
-    def _build_ui(self):
-        layout = QVBoxLayout(self)
-        source_row = QHBoxLayout()
-        for text, handler in (
-            ("添加项目图层", self._add_project_layers),
-            ("添加 GPX 文件", self._add_gpx_files),
-            ("添加文件夹", self._add_folder),
-            ("移除", self._remove_selected),
-            ("清空", self._clear_tasks),
-        ):
-            button = QPushButton(text)
-            button.clicked.connect(handler)
-            source_row.addWidget(button)
-        source_row.addStretch()
-        layout.addLayout(source_row)
-
-        self.task_table = QTableWidget(0, 9)
+        self.task_table.setIconSize(QSize(16, 16))
         self.task_table.setHorizontalHeaderLabels(
             ["启用", "状态", "名称", "来源", "轨迹点", "时间", "高程", "速度", "说明"]
         )
@@ -810,7 +756,7 @@ class BatchGenerationDialog(QDialog):
         metric = self._checked_value(self.metric_group)
         if metric == "speed":
             if task.has_speed:
-                return "可运行", "使用原始或扩展速度"
+                return "可运行", "使用原生速度"
             if task.has_time:
                 return "可运行·部分", "缺少速度，将根据时间模拟"
             return "不可运行", "缺少速度和时间，无法生成速度"
@@ -820,7 +766,7 @@ class BatchGenerationDialog(QDialog):
         if not task.has_time:
             optional.append("缺少时间")
         if not task.has_speed:
-            optional.append("缺少原始速度")
+            optional.append("缺少原生速度")
         return ("可运行·部分", "；".join(optional)) if optional else ("可运行", "字段完整")
 
     def _refresh_task_states(self, *_args):
@@ -838,9 +784,18 @@ class BatchGenerationDialog(QDialog):
             enabled = QTableWidgetItem()
             enabled.setFlags(enabled.flags() | Qt.ItemFlag.ItemIsUserCheckable)
             enabled.setCheckState(Qt.CheckState.Checked if task.selected else Qt.CheckState.Unchecked)
+            time_item = QTableWidgetItem(self._icon_yes if task.has_time else self._icon_no, "有" if task.has_time else "无")
+            elev_item = QTableWidgetItem(self._icon_yes if task.has_elevation else self._icon_no, "有" if task.has_elevation else "无")
+            if task.has_speed:
+                speed_icon = self._icon_orig_data
+            elif task.has_time:
+                speed_icon = self._icon_sim_data
+            else:
+                speed_icon = self._icon_miss_data
+            speed_item = QTableWidgetItem(speed_icon, task.speed_source)
+
             values = [enabled, task.status, shortened_display_name(task.name), task.source_kind, task.point_count,
-                      "有" if task.has_time else "无", "有" if task.has_elevation else "无",
-                      task.speed_source, task.detail]
+                      time_item, elev_item, speed_item, task.detail]
             for col, value in enumerate(values):
                 item = value if isinstance(value, QTableWidgetItem) else QTableWidgetItem(str(value))
                 if col != 0:

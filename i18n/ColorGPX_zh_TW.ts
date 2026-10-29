@@ -594,5 +594,5 @@ Unlock position: Right-click / click blank area.</source>
             <source>files can be added at a time.</source>
             <translation>個檔案。</translation>
         </message>
-    </context>
+    <message><source>Units</source><translation>显示单位</translation></message></context>
 </TS>

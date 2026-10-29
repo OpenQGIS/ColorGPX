@@ -1,11 +1,15 @@
 import math
 import re
+_date_type_names = {'datetime', 'date'}
 try:
-    from qgis.PyQt.QtCore import QVariant
-except ImportError:
-    class QVariant:
-        DateTime = 16
-        Date = 14
+    from qgis.PyQt.QtCore import QMetaType
+    _date_types = (QMetaType.Type.QDateTime, QMetaType.Type.QDate)
+except (ImportError, AttributeError):
+    try:
+        from qgis.PyQt.QtCore import QVariant
+        _date_types = (QVariant.DateTime, QVariant.Date)
+    except (ImportError, AttributeError):
+        _date_types = (16, 14)
 
 def detect_field_and_unit(layer, field_type):
     """
@@ -22,8 +26,13 @@ def detect_field_and_unit(layer, field_type):
             if f.name().lower() == 'time':
                 return f.name(), None
         for f in fields:
-            if f.type() in (QVariant.DateTime, QVariant.Date):
+            if f.typeName().lower() in _date_type_names:
                 return f.name(), None
+            try:
+                if f.type() in _date_types:
+                    return f.name(), None
+            except Exception:  # nosec B110
+                pass
         return None, None
 
     keywords = {

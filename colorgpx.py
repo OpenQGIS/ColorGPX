@@ -1,12 +1,26 @@
-from qgis.PyQt.QtWidgets import (QAction, QDialog, QVBoxLayout, QHBoxLayout, QGridLayout,
+from qgis.PyQt.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGridLayout,
                                  QLabel, QComboBox, QLineEdit, QPushButton,
                                  QMessageBox, QFileDialog, QTextEdit, QProgressBar, QMenu,
-                                 QListWidget, QListWidgetItem, QCheckBox, QSizePolicy, QApplication,
-                                 QSlider, QWidget, QGroupBox, QFrame, QLayout, QRadioButton, QButtonGroup)
-from qgis.PyQt.QtGui import QIcon, QPixmap, QPainter, QColor, QCursor
+                                 QListWidget, QListWidgetItem, QCheckBox, QSizePolicy,
+                                 QWidget, QGroupBox, QFrame, QLayout, QRadioButton, QButtonGroup)
+from qgis.PyQt.QtGui import QIcon, QPixmap, QPainter, QColor, QCursor, QAction
 from qgis.PyQt.QtCore import Qt, QSize, QTimer, QTranslator, QLocale, QCoreApplication, QPoint, QDateTime
-from qgis.core import *
-from qgis.gui import QgsMapTool, QgsVertexMarker
+from qgis.core import (
+    NULL,
+    QgsCoordinateTransform,
+    QgsFeatureRequest,
+    QgsGeometry,
+    QgsMapLayer,
+    QgsPointXY,
+    QgsProject,
+    QgsRectangle,
+    QgsSettings,
+    QgsStyle,
+    QgsVectorFileWriter,
+    QgsVectorLayer,
+    QgsWkbTypes,
+)
+from qgis.gui import QgsFileWidget, QgsMapTool, QgsVertexMarker
 import os
 import re
 
@@ -17,43 +31,153 @@ except ImportError:
 
 
 _zh_translations = {
-    "1. This GPX does not contain speed information; current speed is simulated speed.": "1. 此 GPX 文件没有内置速度信息，当前速度为根据时间和经纬度计算出的模拟速度。",
-    "2. We recommend using [2bulu, Guru Maps, OsmAnd, Organic] to record GPS speed.": "2. 建议使用 [两步路、Guru Maps、OsmAnd、Organic] 等专业软件记录含速度的 GPS 轨迹。",
-    "This GPX layer does not contain elevation data (e.g. ele, elevation, altitude, alt, height tags).\nElevation and Slope rendering fields are unavailable.": "此 GPX 图层不包含高程数据（如 ele、elevation、altitude、alt、height 等标签）。\n高程和坡度渲染功能不可用。",
-    "This GPX layer does not contain time data (e.g. time tag).\nSpeed rendering field is unavailable.": "此 GPX 图层不包含时间数据（如 time 标签）。\n速度渲染功能不可用。",
-    "2. This GPX does not contain elevation data; Elevation and Slope rendering are unavailable.": "2. 此 GPX 文件没有高程数据，高程与坡度渲染不可用。",
-    "3. We recommend using [2bulu, Guru Maps, OsmAnd, Organic] to record GPS speed and elevation.": "3. 建议使用 [两步路、Guru Maps、OsmAnd、Organic] 等专业软件记录含速度与高度的 GPS 轨迹。",
-    "Elevation and Slope rendering are unavailable (no elevation data).": "高程和坡度渲染不可用（无高程数据）。",
-    "Current speed is simulated speed. Elevation and Slope are unavailable.": "当前速度为计算模拟速度。高程与坡度不可用。",
-    "This layer has no time data. Speed rendering is unavailable.": "该图层无时间数据。速度渲染不可用。",
-    "Current speed is simulated speed. Click for more details.": "当前速度为计算模拟速度。点击查看详情。",
-    "Track Info": "轨迹信息",
-    "Time": "时间",
-    "Elevation": "海拔",
-    "Speed": "速度",
-    "Slope": "坡度",
-    "ColorGPX Hover Settings": "悬浮窗口显示设置",
-    "Show Items": "显示内容",
-    "Units": "显示单位",
-    "Hover Track Info": "悬浮轨迹查看工具",
-    "Hover Settings": "悬浮窗口设置",
-    "Batch Generate ColorGPX": "批量生成彩色轨迹",
-    "Select Tracking Layer": "选择追踪图层",
-    "Available Layers": "可用图层",
-    "Start Tracking": "开始追踪",
+    '1. This GPX does not contain speed information; current speed is simulated speed.': '1. 此 GPX 文件没有内置速度信息，当前速度为根据时间和经纬度计算出的模拟速度。',
+    '2. This GPX does not contain elevation data; Elevation and Slope rendering are unavailable.': '2. 此 GPX 文件没有高程数据，高程与坡度渲染不可用。',
+    '2. We recommend using [2bulu, Guru Maps, OsmAnd, Organic] to record GPS speed.': '2. 建议使用 [两步路、Guru Maps、OsmAnd、Organic] 等专业软件记录含速度的 GPS 轨迹。',
+    '3. We recommend using [2bulu, Guru Maps, OsmAnd, Organic] to record GPS speed and elevation.': '3. 建议使用 [两步路、Guru Maps、OsmAnd、Organic] 等专业软件记录含速度与高度的 GPS 轨迹。',
+    'Add': '添加',
+    'Author: OpenQGIS': '作者：OpenQGIS',
+    'Auto-append index': '重名时自动追加序号',
+    'Available Layers': '项目可用矢量图层',
+    'Batch Generate ColorGPX': '批量生成彩色轨迹',
+    'Browse…': '浏览…',
+    'Cancel': '取消',
+    'Cancel Running': '取消运行',
+    'Choose a color ramp': '选择色彩渐变色带',
+    'Choose render field (Speed / Elevation / Slope°)': '选择渲染属性字段 (速度 / 海拔 / 坡度°)',
+    'Choose render mode (Point / Line / Gradient Line)': '选择图层渲染模式 (点 / 线 / 渐变线)',
+    'Click "Run"': '点击“运行”开始处理',
+    'Close': '关闭',
+    'Collision policy': '文件名冲突策略',
+    'Color ramp': '渲染色带',
+    'Color ramp:': '色带:',
+    'ColorGPX': 'ColorGPX',
+    'ColorGPX - Settings': 'ColorGPX - 轨迹渲染设置',
+    'ColorGPX Batch Report': 'ColorGPX 批处理结果报告',
+    'ColorGPX Hover Settings': 'ColorGPX 悬浮提示设置',
+    'Continue executable tasks, skip incompatible tasks': '忽略不兼容任务并继续处理其他有效任务',
+    'Current speed is simulated speed. Click for more details.': '当前速度为计算模拟速度。点击查看详情。',
+    'Current speed is simulated speed. Elevation and Slope are unavailable.': '当前速度为计算模拟速度。高程与坡度渲染不可用。',
+    'Description': '说明',
+    'Elevation': '高程',
+    'Elevation and Slope rendering are unavailable (no elevation data).': '高程和坡度渲染不可用（无高程数据）。',
+    'Elevation field name:': '高程字段名:',
+    'Error': '错误',
+    'Exception policy': '异常处理策略',
+    'Export Batch Report': '导出批处理报告',
+    'Export CSV Report': '导出 CSV 报告',
+    'Field Source': '字段来源',
+    'Field name': '字段名',
+    'File format': '文件格式',
+    'GPX files (*.gpx)': 'GPX 文件 (*.gpx)',
+    'GPX → ColorGPX': 'GPX → ColorGPX',
+    'GeoJSON (*.geojson);;GPKG (*.gpkg);;Shapefile (*.shp);;All files (*)': 'GeoJSON (*.geojson);;GPKG (*.gpkg);;Shapefile (*.shp);;所有文件 (*)',
+    'Gradient Line': '渐变线',
+    'Hover Settings': '悬浮窗口设置',
+    'Hover Track Info': '悬浮轨迹查看工具',
+    'How to use': '使用说明',
+    'Incompatible tasks exist in strict mode, please remove or uncheck them first.': '严格模式下存在无法运行的不兼容任务，请先移除或取消勾选。',
+    'Information': '提示信息',
+    'Input layer (GPX track_points):': '输入图层 (GPX track_points):',
+    'Layer Data Unavailable': '图层数据不可用',
+    'Line': '线',
+    'Naming template': '命名模板',
+    'No available GPX track_points layer found in current project.': '当前工程中未找到可用的 GPX track_points 图层。',
+    'No items selected': '未选择任何显示字段',
+    'No processing results': '没有可处理的图层结果',
+    'No runnable tasks match current configuration.': '当前配置下没有可执行的任务。',
+    'No tasks added yet': '尚未添加任何处理任务',
+    'No tasks need to be run under current exception policy.': '当前异常策略下无需运行任何任务。',
+    'No vector layers found in the project.': '当前工程中未找到任何矢量图层。',
+    'OK': '确定',
+    'Open Output Location': '打开输出文件夹',
+    'Optionally save to GeoJSON, GPKG or Shapefile.': '可选择保存为 GeoJSON、GPKG 或 Shapefile 文件。',
+    'Output': '输出设置',
+    'Output & Naming': '输出文件与命名策略',
+    'Output layer:': '输出图层名称:',
+    'Output location': '输出目录位置',
+    'Output mode': '输出保存模式',
+    'Overwrite existing results': '直接覆盖同名文件',
+    'Please select a GPX track_points layer': '请先选择一个 GPX track_points 图层',
+    'Please select a GeoPackage file in a valid directory.': '请在有效的目录中选择或指定 GeoPackage 文件路径。',
+    'Please select a track_points layer from GPX data!': '请选择 GPX 数据生成的 track_points 图层！',
+    'Please select a valid output folder.': '请选择有效的输出文件夹。',
+    'Point': '点',
+    'Render GPX tracks as gradient-colored layers by speed (m/s), elevation (m) or slope (°). Recommended apps: 2bulu, Guru Maps, OsmAnd, Organic.': '将 GPX 轨迹按速度 (m/s)、高程 (m) 或坡度 (°) 渲染为彩色渐变图层。推荐搭配两步路、Guru Maps、OsmAnd 等软件使用。',
+    'Render field': '渲染属性字段',
+    'Render field:': '渲染属性字段:',
+    'Render mode': '渲染模式',
+    'Render mode:': '渲染模式:',
+    'Report save failed:': '报告导出失败：',
+    'Retry Failed': '重试失败任务',
+    'Reverse ramp': '反转色带',
+    'Run': '运行',
+    'Run tasks with complete fields only': '仅运行具备完整属性字段的任务',
+    'Save': '保存设置',
+    'Save failed': '保存失败',
+    'Save layer': '保存图层',
+    'Save to file...': '保存到文件...',
+    'Saved': '保存成功',
+    'Select Color Ramp': '选择色带',
+    'Select GPX File': '选择 GPX 文件',
+    'Select Project Layer': '选择工程图层',
+    'Select Tracking Layer': '选择追踪图层',
+    'Select a GPX track_points layer': '选择 GPX track_points 图层',
+    'Select...': '选择...',
+    'Separate files': '输出为独立文件',
+    'Settings Preview': '实时渲染效果预览',
+    'Show Items': '显示项目',
+    'Single GeoPackage': '合并保存至单个 GeoPackage',
+    'Skip existing results': '跳过重名文件',
+    'Slope': '坡度',
+    'Slope field name:': '坡度字段名:',
+    'Source': '任务来源',
+    'Speed': '速度',
+    'Speed Source': '速度类型',
+    'Speed field name:': '速度字段名:',
+    'Start Generation': '开始生成',
+    'Start Tracking': '开始追踪',
+    'Status': '任务状态',
+    'Strict mode: Stop if incompatible tasks exist': '严格模式：若存在不兼容任务则停止运行',
+    'Success': '成功',
+    'Temporary layer': '仅创建临时图层',
+    'This GPX layer does not contain elevation data (e.g. ele, elevation, altitude, alt, height tags).\nElevation and Slope rendering fields are unavailable.': '该 GPX 图层不含高程数据（例如 ele、elevation、altitude、alt、height 标签）。\n高程和坡度渲染字段不可用。',
+    'This GPX layer does not contain time data (e.g. time tag).\nSpeed rendering field is unavailable.': '该 GPX 图层不含时间数据（例如 time 标签）。\n速度渲染字段不可用。',
+    'This layer contains no elevation (ele) or time data (e.g. a plain route/waypoint without GPS recording). Speed, Elevation and Slope cannot be calculated. Please use a GPS-recorded track (track_points) layer instead.': '该图层不含高程（ele）或时间数据（例如未经过 GPS 记录的普通路线或航点）。无法计算速度、高程和坡度。请改用 GPS 记录的轨迹（track_points）图层。',
+    'This layer has no elevation or time data. All render fields are unavailable.': '该图层缺少高程和时间数据，所有渲染字段均不可用。',
+    'This layer has no time data. Speed rendering is unavailable.': '该图层缺少时间数据，速度渲染不可用。',
+    'Time': '时间',
+    'To avoid exhausting resources, a maximum of': '为避免系统资源耗尽，单次最多可添加',
+    'Unable to read folder:': '无法读取目标文件夹：',
+    'Unit': '显示单位',
+    'Units': '显示单位',
+    'View Report': '查看批处理报告',
+    'files can be added at a time.': '个文件。',
+    'gradient_line': '渐变线',
+    'line': '线',
+    'point': '点',
+    '{} created ({} mode)': '已创建 {} ({})',
+    '💡 Tip:\nLock position info: Left-click.\nUnlock position: Right-click / click blank area.': '💡 操作提示：\n锁定当前位置参数：鼠标左键点击轨迹线。\n解除定位锁定：鼠标右键点击 / 点击空白区域。',
 }
 
 
 def tr(text, disambiguation=None):
-    """Translate text using QCoreApplication with fallback context."""
+    """Translate text with fallback to bundled Chinese dictionary."""
     res = QCoreApplication.translate("ColorGPX", text, disambiguation)
     if res == text:
         res = QCoreApplication.translate("ColorGPXDialog", text, disambiguation)
-    if res == text:
-        locale_name = QgsSettings().value("locale/userLocale", QLocale.system().name())
-        if locale_name and str(locale_name).lower().startswith("zh"):
-            if text in _zh_translations:
-                return _zh_translations[text]
+    if text in _zh_translations:
+        try:
+            locale_val = QgsSettings().value("locale/userLocale", "")
+            locale_name = (locale_val.decode("utf-8")
+                           if isinstance(locale_val, bytes)
+                           else str(locale_val or ""))
+        except Exception:
+            locale_name = ""
+        if not locale_name or locale_name.lower() in ("none", "null"):
+            locale_name = QLocale().name()
+        if locale_name.lower().startswith("zh"):
+            return _zh_translations[text]
     return res
 
 
@@ -79,157 +203,17 @@ class ColorGPXDialog(QDialog):
         left_layout.addWidget(QLabel(tr("Input layer (GPX track_points):")))
         self.layer_combo = QComboBox()
         self.refresh_layers()
-        left_layout.addWidget(self.layer_combo)
-
-        left_layout.addWidget(QLabel(tr("Render mode:")))
-        self.render_mode_group = QButtonGroup()
-        self.rb_point = QRadioButton(tr("Point"))
-        self.rb_line = QRadioButton(tr("Line"))
-        self.rb_gradient = QRadioButton(tr("Gradient Line"))
-        self.render_mode_group.addButton(self.rb_point)
-        self.render_mode_group.addButton(self.rb_line)
-        self.render_mode_group.addButton(self.rb_gradient)
-        self.rb_point.setChecked(True)
-        self.rb_point.toggled.connect(self._on_mode_changed)
-        self.rb_line.toggled.connect(self._on_mode_changed)
-        self.rb_gradient.toggled.connect(self._on_mode_changed)
-
-        mode_grid = QGridLayout()
-        mode_grid.setSpacing(10)
-        mode_grid.setContentsMargins(0, 0, 0, 0)
-        mode_grid.setColumnMinimumWidth(0, 90)
-        mode_grid.setColumnMinimumWidth(1, 90)
-        mode_grid.setColumnMinimumWidth(2, 90)
-        mode_grid.setColumnStretch(0, 0)
-        mode_grid.setColumnStretch(1, 0)
-        mode_grid.setColumnStretch(2, 0)
-        mode_grid.setColumnStretch(3, 1)
-        mode_grid.addWidget(self.rb_point, 0, 0)
-        mode_grid.addWidget(self.rb_line, 0, 1)
-        mode_grid.addWidget(self.rb_gradient, 0, 2)
-        left_layout.addLayout(mode_grid)
-
-        left_layout.addWidget(QLabel(tr("Render field:")))
-        self.render_type_group = QButtonGroup()
-        self.rb_speed = QRadioButton(tr("Speed"))
-        self.rb_elevation = QRadioButton(tr("Elevation"))
-        self.rb_slope = QRadioButton(tr("Slope"))
-        self.render_type_group.addButton(self.rb_speed)
-        self.render_type_group.addButton(self.rb_elevation)
-        self.render_type_group.addButton(self.rb_slope)
-        self.rb_speed.setChecked(True)
-
-        type_grid = QGridLayout()
-        type_grid.setSpacing(10)
-        type_grid.setContentsMargins(0, 0, 0, 0)
-        type_grid.setColumnMinimumWidth(0, 90)
-        type_grid.setColumnMinimumWidth(1, 90)
-        type_grid.setColumnMinimumWidth(2, 90)
-        type_grid.setColumnStretch(0, 0)
-        type_grid.setColumnStretch(1, 0)
-        type_grid.setColumnStretch(2, 0)
-        type_grid.setColumnStretch(3, 1)
-        type_grid.addWidget(self.rb_elevation, 0, 0)
-        type_grid.addWidget(self.rb_slope, 0, 1)
-
-        speed_layout = QHBoxLayout()
-        speed_layout.setContentsMargins(0, 0, 0, 0)
-        speed_layout.setSpacing(2)
-        speed_layout.addWidget(self.rb_speed)
-
-        self.speed_warn_btn = QPushButton()
-        self._icon_warn_yellow = QIcon(os.path.join(os.path.dirname(__file__), "icons_Component", "warning_yellow.svg"))
-        self._icon_warn_red = QIcon(os.path.join(os.path.dirname(__file__), "icons_Component", "warning_red.svg"))
-        self.speed_warn_btn.setIcon(self._icon_warn_yellow)
-        self.speed_warn_btn.setIconSize(QSize(16, 16))
-        self.speed_warn_btn.setStyleSheet("QPushButton { border: none; background: transparent; }")
-        self.speed_warn_btn.setToolTip(tr("Current speed is simulated speed. Click for more details."))
-        self.speed_warn_btn.setVisible(False)
-        self.speed_warn_btn.clicked.connect(self._show_speed_warning)
-        speed_layout.addWidget(self.speed_warn_btn)
-
-        speed_widget = QWidget()
-        speed_widget.setLayout(speed_layout)
-        type_grid.addWidget(speed_widget, 0, 2)
-
-        self.elev_unit_combo = QComboBox()
-        self.elev_unit_combo.addItems(["m", "ft"])
-        self.elev_unit_combo.setFixedWidth(60)
-
-        self.slope_unit_combo = QComboBox()
-        self.slope_unit_combo.addItems(["°", "%"])
-        self.slope_unit_combo.setFixedWidth(60)
-
-        self.speed_unit_combo = QComboBox()
-        self.speed_unit_combo.addItems(["m/s", "km/h", "mph"])
-        self.speed_unit_combo.setFixedWidth(60)
-
-        type_grid.addWidget(self.elev_unit_combo, 1, 0)
-        type_grid.addWidget(self.slope_unit_combo, 1, 1)
-        type_grid.addWidget(self.speed_unit_combo, 1, 2)
-
-        left_layout.addLayout(type_grid)
-
-        left_layout.addWidget(QLabel(tr("Color ramp:")))
-        ramp_row = QHBoxLayout()
-        self.ramp_preview = QLabel()
-        self.ramp_preview.setFixedSize(74, 22)
-        ramp_row.addWidget(self.ramp_preview)
-        self.ramp_display = QLineEdit()
-        self.ramp_display.setReadOnly(True)
-        ramp_row.addWidget(self.ramp_display, stretch=1)
-        self.ramp_btn = QPushButton(tr("Select..."))
-        self.ramp_btn.clicked.connect(self._pick_color_ramp)
-        ramp_row.addWidget(self.ramp_btn)
-        left_layout.addLayout(ramp_row)
-        # Initialize with first color ramp
-        try:
-            ramp_names = QgsStyle().defaultStyle().colorRampNames()
-            if ramp_names:
-                self.ramp_display.setText(ramp_names[0])
-                ramp = QgsStyle().defaultStyle().colorRamp(ramp_names[0])
-                if ramp:
-                    icon = self._make_ramp_preview(ramp)
-                    self.ramp_preview.setPixmap(icon.pixmap(74, 22))
-        except Exception as e:
-            print(f"ColorGPX: Error during default color ramp initialization: {e}")
-
-        # ---- reverse ramp checkbox ---- #
-        ramp_rev_row = QHBoxLayout()
-        self.reverse_cb = QCheckBox(tr("Reverse ramp"))
-        self.processing_callback = None
-        self.reverse_cb.toggled.connect(self._update_ramp_preview)
-        ramp_rev_row.addWidget(self.reverse_cb)
-        ramp_rev_row.addStretch()
-        left_layout.addLayout(ramp_rev_row)
-
-        left_layout.addWidget(QLabel(tr("Elevation field name:")))
-        self.elev_field = QLineEdit("ELEV")
-        left_layout.addWidget(self.elev_field)
-
-        left_layout.addWidget(QLabel(tr("Speed field name:")))
-        self.speed_field = QLineEdit("speed")
-        left_layout.addWidget(self.speed_field)
-
-        left_layout.addWidget(QLabel(tr("Slope field name:")))
-        self.slope_field = QLineEdit("Slope")
-        left_layout.addWidget(self.slope_field)
-
-
-class ColorGPXDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(tr("ColorGPX - Settings"))
-        self.setMinimumWidth(500)
-
-        main_layout = QVBoxLayout(self)
-
-        # ---- left panel ---- #
-        left_layout = QVBoxLayout()
-        left_layout.addWidget(QLabel(tr("Input layer (GPX track_points):")))
-        self.layer_combo = QComboBox()
-        self.refresh_layers()
-        left_layout.addWidget(self.layer_combo)
+        layer_row = QHBoxLayout()
+        layer_row.setContentsMargins(0, 0, 0, 0)
+        layer_row.addWidget(self.layer_combo, 1)
+        self.gpx_file_widget = QgsFileWidget(self)
+        self.gpx_file_widget.setStorageMode(QgsFileWidget.StorageMode.GetFile)
+        self.gpx_file_widget.setFilter(tr("GPX files (*.gpx)"))
+        self.gpx_file_widget.setDialogTitle(tr("Select GPX File"))
+        self.gpx_file_widget.setMinimumWidth(220)
+        self.gpx_file_widget.fileChanged.connect(self._on_gpx_file_selected)
+        layer_row.addWidget(self.gpx_file_widget)
+        left_layout.addLayout(layer_row)
 
         left_layout.addWidget(QLabel(tr("Render mode:")))
         self.render_mode_group = QButtonGroup()
@@ -452,6 +436,63 @@ class ColorGPXDialog(QDialog):
         self.layer_combo.currentIndexChanged.connect(self._on_layer_changed)
         self._on_layer_changed()
 
+    def refresh_layers(self):
+        self.layer_combo.clear()
+        for layer in QgsProject.instance().mapLayers().values():
+            if layer.type() == QgsMapLayer.LayerType.VectorLayer:
+                self.layer_combo.addItem(layer.name(), layer)
+
+    def _on_gpx_file_selected(self, file_path):
+        """Load the selected GPX track_points layer and select it in the UI."""
+        file_path = os.path.abspath(os.path.expanduser(str(file_path).strip()))
+        if not file_path or not os.path.isfile(file_path):
+            return
+
+        normalized_path = os.path.normcase(os.path.normpath(file_path))
+        selected_layer = None
+        for layer in QgsProject.instance().mapLayers().values():
+            if layer.type() != QgsMapLayer.LayerType.VectorLayer:
+                continue
+            source_path = layer.source().split("|", 1)[0]
+            if (os.path.normcase(os.path.normpath(source_path)) == normalized_path
+                    and "layername=track_points" in layer.source().lower()):
+                selected_layer = layer
+                break
+
+        if selected_layer is None:
+            layer_name = f"{os.path.splitext(os.path.basename(file_path))[0]} — track_points"
+            selected_layer = QgsVectorLayer(
+                f"{file_path}|layername=track_points", layer_name, "ogr")
+            if not selected_layer.isValid():
+                QMessageBox.warning(
+                    self,
+                    tr("Error"),
+                    tr("Please select a GPX track_points layer"),
+                )
+                return
+            QgsProject.instance().addMapLayer(selected_layer)
+
+        self.refresh_layers()
+        for index in range(self.layer_combo.count()):
+            if self.layer_combo.itemData(index) is selected_layer:
+                self.layer_combo.setCurrentIndex(index)
+                break
+
+    def get_selected_layer(self):
+        idx = self.layer_combo.currentIndex()
+        if idx >= 0:
+            return self.layer_combo.itemData(idx)
+        return None
+
+    def _update_ramp_preview(self):
+        name = self.ramp_display.text()
+        if not name:
+            return
+        ramp = QgsStyle().defaultStyle().colorRamp(name)
+        if ramp:
+            icon = self._make_ramp_preview(ramp, reverse=self.reverse_cb.isChecked())
+            self.ramp_preview.setPixmap(icon.pixmap(74, 22))
+
     def _on_mode_changed(self):
         if self.rb_point.isChecked():
             self.output_name.setText("ColorGPX_points")
@@ -603,7 +644,7 @@ class ColorGPXDialog(QDialog):
 
         try:
             self.speed_warn_btn.clicked.disconnect()
-        except TypeError:
+        except TypeError:  # nosec B110
             pass
 
         # Control warning button based on data cases
@@ -1046,8 +1087,8 @@ class ColorGPXHoverLayerDialog(QDialog):
         self._layers = []
         for layer in QgsProject.instance().mapLayers().values():
             if layer.type() == QgsMapLayer.LayerType.VectorLayer:
-                self._layers.append(layer)
-                self.combo.addItem(layer.name(), layer)
+                self._layers.append(layer.id())
+                self.combo.addItem(layer.name(), layer.id())
 
         if not self._layers:
             layout.addWidget(QLabel(tr("No vector layers found in the project.")))
@@ -1072,7 +1113,8 @@ class ColorGPXHoverLayerDialog(QDialog):
     def _on_start(self):
         idx = self.combo.currentIndex()
         if idx >= 0:
-            self._selected_layer = self.combo.itemData(idx)
+            layer_id = self.combo.itemData(idx)
+            self._selected_layer = QgsProject.instance().mapLayer(layer_id)
         self.accept()
 
     def selected_layer(self):
@@ -1083,7 +1125,9 @@ class ColorGPXHoverMapTool(QgsMapTool):
     def __init__(self, canvas, hover_widget, tracked_layer):
         super().__init__(canvas)
         self.hover_widget = hover_widget
-        self.tracked_layer = tracked_layer
+        # Store only the project layer ID. A QgsVectorLayer Python wrapper can
+        # outlive its deleted C++ object when the layer is removed/reloaded.
+        self.tracked_layer_id = tracked_layer.id()
         # 记录上一次吸附的 canvas 像素坐标，用于防抖
         self._last_snap_pixel = None
         # 用于在地图上标识吸附点的定位图层/图标
@@ -1103,15 +1147,37 @@ class ColorGPXHoverMapTool(QgsMapTool):
         self._last_detected_snap_pixel = None
         self._last_detected_interpolation_ratio = 0.0
 
+    def _resolve_tracked_layer(self):
+        """Return the live project layer, or None after it has been removed."""
+        try:
+            layer = QgsProject.instance().mapLayer(self.tracked_layer_id)
+            if layer is not None and layer.isValid():
+                return layer
+        except RuntimeError:
+            # The C++ layer may be deleted between queued canvas events.
+            pass
+        return None
+
+    def _hide_tracking_display(self):
+        self.hover_widget.hide()
+        self._last_snap_pixel = None
+        self._last_detected_feat = None
+        self._last_detected_snap_point = None
+        self._last_detected_snap_pixel = None
+        self._last_detected_interpolation_ratio = 0.0
+        self.is_pinned = False
+        self.pinned_feat = None
+        if self.marker:
+            self.marker.hide()
+
     def canvasMoveEvent(self, event):
-        layer = self.tracked_layer
-        if not layer or not layer.isValid():
-            self.hover_widget.hide()
-            if self.marker:
-                self.marker.hide()
+        layer = self._resolve_tracked_layer()
+        if layer is None:
+            self._hide_tracking_display()
             return
 
-        map_point = self.toMapCoordinates(event.pos())  # Canvas CRS
+        pos = event.position().toPoint() if hasattr(event, 'position') else event.pos()
+        map_point = self.toMapCoordinates(pos)  # Canvas CRS
 
         canvas_crs = self.canvas().mapSettings().destinationCrs()
         layer_crs = layer.crs()
@@ -1289,8 +1355,9 @@ class ColorGPXHoverMapTool(QgsMapTool):
                     self.marker.hide()
 
     def canvasPressEvent(self, event):
-        layer = self.tracked_layer
-        if not layer or not layer.isValid():
+        layer = self._resolve_tracked_layer()
+        if layer is None:
+            self._hide_tracking_display()
             return
 
         if event.button() == Qt.MouseButton.LeftButton:
@@ -1503,10 +1570,16 @@ class ColorGPX:
         self.toolbar.addAction(self.hover_settings_action)
 
         self.iface.mapCanvas().mapToolSet.connect(self.on_map_tool_changed)
+        QgsProject.instance().layersWillBeRemoved.connect(self.on_layers_will_be_removed)
 
     def unload(self):
         try:
             self.iface.mapCanvas().mapToolSet.disconnect(self.on_map_tool_changed)
+        except Exception:  # nosec B110
+            pass
+        try:
+            QgsProject.instance().layersWillBeRemoved.disconnect(
+                self.on_layers_will_be_removed)
         except Exception:  # nosec B110
             pass
 
@@ -1567,6 +1640,17 @@ class ColorGPX:
             self.hover_action.setChecked(is_hover_tool)
         if not is_hover_tool and self.hover_widget:
             self.hover_widget.hide()
+
+    def on_layers_will_be_removed(self, layer_ids):
+        """Deactivate tracking before its source layer C++ object is deleted."""
+        if (not self.hover_map_tool
+                or self.hover_map_tool.tracked_layer_id not in layer_ids):
+            return
+        self.hover_map_tool._hide_tracking_display()
+        if self.iface.mapCanvas().mapTool() == self.hover_map_tool:
+            self.iface.mapCanvas().unsetMapTool(self.hover_map_tool)
+        if self.hover_action:
+            self.hover_action.setChecked(False)
 
     def show_hover_settings(self):
         dialog = ColorGPXHoverSettingsDialog(self.iface.mainWindow())

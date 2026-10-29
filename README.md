@@ -11,7 +11,7 @@
 
 > 将 GPX 轨迹按速度、高程或坡度渲染为渐变色图层的 QGIS 插件
 
-**当前版本 / Current version：3.6.0**
+**当前版本 / Current version：3.7.2**
 
 **ColorGPX** 从 GPX 文件的 track_points 图层中提取速度（speed）、高程（elevation）信息，并自动计算坡度（slope），生成点、线或渐变线图层，并按对应属性进行色彩渲染，让轨迹数据一目了然。
 

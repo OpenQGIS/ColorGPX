@@ -7,10 +7,16 @@ try:
     _String = QMetaType.Type.QString
     _DateTime = QMetaType.Type.QDateTime
 except (ImportError, AttributeError):
-    _Int = QVariant.Int
-    _Double = QVariant.Double
-    _String = QVariant.String
-    _DateTime = QVariant.DateTime
+    try:
+        _Int = QVariant.Int
+        _Double = QVariant.Double
+        _String = QVariant.String
+        _DateTime = QVariant.DateTime
+    except (ImportError, AttributeError):
+        _Int = 2
+        _Double = 6
+        _String = 10
+        _DateTime = 16
 try:
     import defusedxml.ElementTree as ET
 except ImportError:
@@ -99,12 +105,12 @@ def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Sl
                     if ct_lower in ("ele", "elevation", "altitude", "alt", "height"):
                         try:
                             ele = float(child.text)
-                        except (ValueError, TypeError):
+                        except (ValueError, TypeError):  # nosec B110
                             pass
                     elif ct_lower == "speed":
                         try:
                             speed = float(child.text)
-                        except (ValueError, TypeError):
+                        except (ValueError, TypeError):  # nosec B110
                             pass
                     elif ct_lower == "time":
                         time_val = child.text or ""
@@ -115,12 +121,12 @@ def process_lines(gpx_file, elev_name="ELEV", speed_name="speed", slope_name="Sl
                             if ect_lower == "speed":
                                 try:
                                     speed = float(ext_child.text)
-                                except (ValueError, TypeError):
+                                except (ValueError, TypeError):  # nosec B110
                                     pass
                             elif ect_lower in ("ele", "elevation", "altitude", "alt", "height"):
                                 try:
                                     ele = float(ext_child.text)
-                                except (ValueError, TypeError):
+                                except (ValueError, TypeError):  # nosec B110
                                     pass
                 points.append(dict(
                     lon=float(trkpt.attrib.get("lon", 0)),
