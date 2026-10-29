@@ -1,7 +1,7 @@
 [general]
 name=ColorGPX
 description=GPX轨迹按速度/高度/坡度渲染及批量处理工具，支持工程图层、单个或多个GPX和extensions扩展字段。 / Render and batch-process GPX tracks by speed, elevation or slope from project layers or one/many GPX files, including extension fields.
-version=3.7.2
+version=3.7.3
 qgisMinimumVersion=3.1
 qgisMaximumVersion=4.99
 author=OpenQGIS
@@ -14,6 +14,9 @@ homepage=https://github.com/OpenQGIS/ColorGPX
 category=Analysis
 icon=icons/icon.png
 changelog=
+  Version 3.7.3:
+  - 🐛 修复bug提升性能 / Bug fixes and performance improvements
+
   Version 3.7.1:
   - 🛡️ 修复 Bandit B110 安全审计报错，添加 # nosec B110 标记。 / Fixed Bandit B110 security audit error by adding # nosec B110 annotations.
   - ✨ 优化批量处理面板，高程/时间/速度来源添加属性图标并规范“原生”速度命名。 / Added property icons for elevation/time/speed source in batch panel.
